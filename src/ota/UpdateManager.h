@@ -7,9 +7,19 @@
 
 namespace RomCloud {
 
-constexpr const char* APP_VERSION = "2.1.2";
-constexpr const char* GITHUB_REPO = "bun2it/RomCloud";
-constexpr const char* VERSION_MANIFEST_URL = "https://raw.githubusercontent.com/bun2it/RomCloud/main/version.json";
+constexpr const char* GITHUB_REPO = "nlkcodenew/RomCloud";
+constexpr const char* VERSION_MANIFEST_URL = "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/version.json";
+#if defined(ROMCLOUD_TARGET_SMART_PRO_S)
+constexpr const char* APP_VERSION = "2.2.0";
+constexpr const char* RELEASE_TAG_PREFIX = "smart-pro-s-v";
+constexpr const char* RELEASE_BINARY_NAME = "RomCloud-smart-pro-s";
+constexpr const char* RELEASE_BUNDLE_NAME = "mpv_bundle-smart-pro-s.zip";
+#else
+constexpr const char* APP_VERSION = "2.2.0";
+constexpr const char* RELEASE_TAG_PREFIX = "brick-pro-v";
+constexpr const char* RELEASE_BINARY_NAME = "RomCloud-brick-pro";
+constexpr const char* RELEASE_BUNDLE_NAME = "mpv_bundle-brick-pro.zip";
+#endif
 
 enum class UpdateState {
     IDLE,

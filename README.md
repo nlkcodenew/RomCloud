@@ -1,6 +1,6 @@
-# RomCloud for TrimUI Brick Pro
+# RomCloud for TrimUI Brick Pro and Smart Pro S
 
-**RomCloud** is a native, cloud-backed ROM library management application for the **TrimUI Brick Pro** handheld game console.
+**RomCloud** is a native, cloud-backed ROM library management application for the **TrimUI Brick Pro** and **TrimUI Smart Pro S** handheld game consoles.
 
 It solves the physical storage constraint of handheld gaming by integrating **Google Drive** as an unlimited master ROM library while treating the local microSD card as an on-demand cache.
 
@@ -10,7 +10,8 @@ It solves the physical storage constraint of handheld gaming by integrating **Go
 
 * **100% Firmware Independence:** Operates entirely inside `/mnt/SDCARD/Apps/RomCloud/`. Never touches `/rom`, `/overlay`, rootfs, or core emulators. Survives all official TrimUI firmware updates.
 * **Over-The-Air (OTA) Updates:** Self-updating client that checks GitHub releases/commits (`version.json`), downloads the latest binary directly over Wi-Fi with live progress, replaces `RomCloud`, and restarts seamlessly.
-* **Native C++17 & SDL2 Hardware Acceleration:** 60 FPS buttery-smooth UI rendering at native 1024x768 display resolution with sub-millisecond input response.
+* **Native C++17 & SDL2 Hardware Acceleration:** 60 FPS UI using a 1024x768 logical canvas, automatically letterboxed on the Smart Pro S 1280x720 display.
+* **Privacy-safe Diagnostics:** Displays a stable `HW-xxxxxxxxxxxx` device hash and sends sanitized crash logs through an HTTPS relay without storing a GitHub token on the handheld.
 * **SQLite3 Local Metadata Database:** High-performance database with WAL journal mode storing tens of thousands of ROMs, system classifications, cover art paths, file sizes, and sync states.
 * **Google OAuth 2.0 Device Flow (RFC 8628):** Zero physical keyboard typing needed. Pairs in seconds with any smartphone via high-contrast native QR code.
 * **Smart Drive Sync Engine:** Scans Google Drive `/RomCloud/<SYSTEM>/...` hierarchy, matches folder names to TrimUI platform folders, preserves local ROMs, and updates metadata atomically.
@@ -58,6 +59,16 @@ romcloud/
 ├── launch.sh
 └── README.md
 ```
+
+## Build and Release
+
+Build the Brick Pro target with `./build.sh`. Build and package the dedicated
+Smart Pro S channel with `./release-smart-pro-s.sh`; its tag format is
+`smart-pro-s-vX.Y.Z`.
+
+The diagnostics endpoint is configured in `config/reporting.json`. The GitHub
+token belongs only in the Cloudflare Worker secret described in
+`deploy/issue-relay/README.md`, never in the app or release ZIP.
 
 ---
 

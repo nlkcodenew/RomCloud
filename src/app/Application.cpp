@@ -1,6 +1,7 @@
 #include "Application.h"
 #include "../config/AppConfig.h"
 #include "../logging/Logger.h"
+#include "../logging/IssueLogger.h"
 #include "../filesystem/FileSystemManager.h"
 #include "../database/DatabaseManager.h"
 #include "../database/RomIndexer.h"
@@ -77,6 +78,11 @@ bool Application::initSDL() {
         }
     }
 
+    if (SDL_RenderSetLogicalSize(m_renderer, 1024, 768) != 0) {
+        Logger::error(std::string("SDL_RenderSetLogicalSize failed: ") + SDL_GetError());
+        return false;
+    }
+
     SDL_ShowCursor(SDL_DISABLE);
     int w = 0, h = 0;
     SDL_GetRendererOutputSize(m_renderer, &w, &h);
@@ -113,7 +119,7 @@ bool Application::init(int argc, char* argv[]) {
 
     Logger::instance().header("======================================================================");
     Logger::instance().header("[" + timeSs.str() + "] [DEBUG LOG] RomCloud v" + std::string(APP_VERSION) + " Session Started");
-    Logger::instance().header("Device: " + diag.socName + " (" + diag.osName + " " + diag.kernelRelease + ") | Screen: " + diag.displayResolution);
+    Logger::instance().header("Device: " + diag.deviceModel + " [" + diag.hardwareId + "] (" + diag.osName + " " + diag.kernelRelease + ") | Screen: " + diag.displayResolution);
     Logger::instance().header("RAM: " + diag.freeRam + " / " + diag.totalRam + " | App Root: " + AppConfig::instance().getAppRoot());
     Logger::instance().header("Log Location: " + AppConfig::instance().getDebugLogPath());
     Logger::instance().header("======================================================================");
@@ -208,6 +214,7 @@ bool Application::init(int argc, char* argv[]) {
 
     // Initialize Network, OAuth, Sync & Download
     HttpClient::instance().init();
+    IssueLogger::instance().uploadPending("startup_retry");
     WebServer::instance().start(8080);
 
     // Initialize Database

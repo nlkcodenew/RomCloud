@@ -1,17 +1,26 @@
 {
-  "version": "2.1.2",
-  "release_date": "2026-09-25",
+  "version": "2.2.0",
+  "release_date": "2026-09-30",
   "target_os": "ALL",
-  "icon_url": "https://raw.githubusercontent.com/bun2it/RomCloud/main/icon.png",
-  "binary_url": "https://github.com/bun2it/RomCloud/releases/download/v2.1.2/RomCloud",
-  "bundle_url": "https://github.com/bun2it/RomCloud/releases/download/v2.1.2/mpv_bundle.zip",
-  "STOCK_PS_bundle_url": "https://github.com/bun2it/RomCloud/releases/download/v2.1.2/bundle-STOCK_PS.zip",
-  "NEXTUI_bundle_url": "https://github.com/bun2it/RomCloud/releases/download/v2.1.2/bundle-NEXTUI.zip",
-  "SPRUCE_OS_bundle_url": "https://github.com/bun2it/RomCloud/releases/download/v2.1.2/bundle-SPRUCE_OS.zip",
-  "os_versions": {
-    "STOCK_PS": "2.1.2",
-    "NEXTUI": "2.1.2",
-    "SPRUCE_OS": "2.1.2"
+  "device_channels": {
+    "brick-pro": "brick-pro-v2.2.0",
+    "smart-pro-s": "smart-pro-s-v2.2.0"
   },
-  "changelog": "v2.1.2: Cập nhật chức năng ghi debug log"
+  "SMART_PRO_S_version": "2.2.0",
+  "SMART_PRO_S_release_date": "2026-09-30",
+  "SMART_PRO_S_binary_url": "https://github.com/nlkcodenew/RomCloud/releases/download/smart-pro-s-v2.2.0/RomCloud-smart-pro-s",
+  "SMART_PRO_S_bundle_url": "https://github.com/nlkcodenew/RomCloud/releases/download/smart-pro-s-v2.2.0/mpv_bundle-smart-pro-s.zip",
+  "icon_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/icon.png",
+  "binary_url": "https://github.com/nlkcodenew/RomCloud/releases/download/brick-pro-v2.2.0/RomCloud-brick-pro",
+  "bundle_url": "https://github.com/nlkcodenew/RomCloud/releases/download/brick-pro-v2.2.0/mpv_bundle-brick-pro.zip",
+  "STOCK_PS_bundle_url": "https://github.com/nlkcodenew/RomCloud/releases/download/brick-pro-v2.2.0/bundle-STOCK_PS.zip",
+  "NEXTUI_bundle_url": "https://github.com/nlkcodenew/RomCloud/releases/download/brick-pro-v2.2.0/bundle-NEXTUI.zip",
+  "SPRUCE_OS_bundle_url": "https://github.com/nlkcodenew/RomCloud/releases/download/brick-pro-v2.2.0/bundle-SPRUCE_OS.zip",
+  "os_versions": {
+    "STOCK_PS": "2.2.0",
+    "NEXTUI": "2.2.0",
+    "SPRUCE_OS": "2.2.0"
+  },
+  "SMART_PRO_S_changelog": "Hỗ trợ chính thức TrimUI Smart Pro S với giao diện vừa màn hình 1280x720, kênh cập nhật riêng và mã thiết bị băm để gửi log lỗi an toàn.",
+  "changelog": "Thêm mã thiết bị băm và gửi log lỗi an toàn qua HTTPS relay; tách kênh cập nhật Brick Pro và Smart Pro S."
 }

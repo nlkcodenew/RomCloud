@@ -4,13 +4,15 @@ cd "$(dirname "$0")"
 # Set dynamic library search path (local lib, system SD lib, system usr lib)
 export LD_LIBRARY_PATH="$(dirname "$0")/lib:/mnt/SDCARD/System/lib:/usr/lib:$LD_LIBRARY_PATH"
 
-# Display orientation check for TrimUI Brick Pro / Smart Pro
+# Display orientation check for TrimUI Brick Pro / Smart Pro / Smart Pro S
 if [ -f /etc/trimui_device.txt ]; then
     read -r Current_device </etc/trimui_device.txt
-    if [ "$Current_device" = "tsps" ]; then
+    case "$Current_device" in
+      tsps|smartpro_s|*TG5050*|*tg5050*)
         echo 1 >/sys/class/drm/card0-DSI-1/rotate 2>/dev/null
         echo 1 >/sys/class/drm/card0-DSI-1/force_rotate 2>/dev/null
-    fi
+        ;;
+    esac
 fi
 
 # Clean up any leftover temporary files from prior sessions
@@ -111,6 +113,15 @@ while true; do
         install_pending_ota
         sleep 1
         continue
+    fi
+    if [ $EXIT_CODE -ne 0 ]; then
+        mkdir -p ./data
+        {
+            echo "RomCloud exited unexpectedly"
+            echo "exit_code=$EXIT_CODE"
+            date 2>/dev/null || true
+        } > ./data/pending_issue_report
+        sync
     fi
     break
 done

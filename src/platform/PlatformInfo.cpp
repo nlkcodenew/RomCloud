@@ -1,10 +1,12 @@
 #include "PlatformInfo.h"
+#include "DeviceIdentity.h"
 #include "../filesystem/FileSystemManager.h"
 #include "../config/AppConfig.h"
 #include "../logging/Logger.h"
 #include "../ota/UpdateManager.h"
 
 #include <sys/utsname.h>
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <cstring>
@@ -52,6 +54,30 @@ PlatformInfo& PlatformInfo::instance() {
 }
 
 DeviceType PlatformInfo::detectDeviceType() {
+#if defined(ROMCLOUD_TARGET_SMART_PRO_S)
+    return DeviceType::TRIMUI_SMART_PRO_S;
+#endif
+
+    std::ifstream trimuiDeviceFile("/etc/trimui_device.txt");
+    if (trimuiDeviceFile.is_open()) {
+        std::string trimuiDevice;
+        std::getline(trimuiDeviceFile, trimuiDevice);
+        std::transform(trimuiDevice.begin(), trimuiDevice.end(), trimuiDevice.begin(), ::tolower);
+        if (trimuiDevice.find("smartpro_s") != std::string::npos ||
+            trimuiDevice.find("smart pro s") != std::string::npos ||
+            trimuiDevice.find("tg5050") != std::string::npos) {
+            return DeviceType::TRIMUI_SMART_PRO_S;
+        }
+    }
+
+    std::string detectedModel = DeviceIdentity::deviceModel();
+    std::transform(detectedModel.begin(), detectedModel.end(), detectedModel.begin(), ::tolower);
+    if (detectedModel.find("smart pro s") != std::string::npos ||
+        detectedModel.find("smartpro s") != std::string::npos ||
+        detectedModel.find("tg5050") != std::string::npos) {
+        return DeviceType::TRIMUI_SMART_PRO_S;
+    }
+
     // TrimUI Brick Pro: 1024x768
     if (m_displayWidth == 1024 && m_displayHeight == 768) {
         return DeviceType::TRIMUI_BRICK_PRO;
@@ -79,6 +105,11 @@ DeviceType PlatformInfo::detectDeviceType() {
 
         if (model.find("Brick") != std::string::npos || model.find("brick") != std::string::npos) {
             return DeviceType::TRIMUI_BRICK_PRO;
+        }
+        if (model.find("Smart Pro S") != std::string::npos ||
+            model.find("smart pro s") != std::string::npos ||
+            model.find("TG5050") != std::string::npos || model.find("tg5050") != std::string::npos) {
+            return DeviceType::TRIMUI_SMART_PRO_S;
         }
         if (model.find("Smart") != std::string::npos || model.find("smart") != std::string::npos) {
             return DeviceType::TRIMUI_SMART_PRO;
@@ -113,6 +144,7 @@ std::string PlatformInfo::getDeviceName() {
     switch (m_deviceType) {
         case DeviceType::TRIMUI_BRICK_PRO:  return "TrimUI Brick Pro";
         case DeviceType::TRIMUI_SMART_PRO:  return "TrimUI Smart Pro";
+        case DeviceType::TRIMUI_SMART_PRO_S:return "TrimUI Smart Pro S";
         case DeviceType::TRIMUI_BETA:       return "TrimUI Beta";
         case DeviceType::POCKETGO:          return "PocketGo";
         default:                            return "Unknown Device";
@@ -141,27 +173,19 @@ void PlatformInfo::setDisplayMetrics(int width, int height) {
 }
 
 int PlatformInfo::scaleX(int x) {
-    // Scale X based on display width vs base width (1024)
-    if (m_displayWidth == 0 || m_displayWidth == 1024) return x;
-    return static_cast<int>(x * m_displayWidth / 1024.0f);
+    return x;
 }
 
 int PlatformInfo::scaleY(int y) {
-    // Scale Y based on display height vs base height (768)
-    if (m_displayHeight == 0 || m_displayHeight == 768) return y;
-    return static_cast<int>(y * m_displayHeight / 768.0f);
+    return y;
 }
 
 int PlatformInfo::scaleW(int w) {
-    // Scale width based on display width vs base width (1024)
-    if (m_displayWidth == 0 || m_displayWidth == 1024) return w;
-    return static_cast<int>(w * m_displayWidth / 1024.0f);
+    return w;
 }
 
 int PlatformInfo::scaleH(int h) {
-    // Scale height based on display height vs base height (768)
-    if (m_displayHeight == 0 || m_displayHeight == 768) return h;
-    return static_cast<int>(h * m_displayHeight / 768.0f);
+    return h;
 }
 
 std::string PlatformInfo::getIpAddress(const std::string& interfaceName) {
@@ -190,6 +214,8 @@ bool PlatformInfo::isNetworkConnected() {
 
 SystemDiagnostics PlatformInfo::getDiagnostics() {
     SystemDiagnostics diag;
+    diag.hardwareId = DeviceIdentity::hardwareId();
+    diag.deviceModel = DeviceIdentity::deviceModel();
     diag.appVersion = std::string(APP_VERSION);
     diag.buildDate = __DATE__ " " __TIME__;
 

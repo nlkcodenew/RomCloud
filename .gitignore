@@ -8,3 +8,5 @@ build/
 scratch/
 dist/
 *.zip
+deploy/issue-relay/wrangler.toml
+.wrangler/

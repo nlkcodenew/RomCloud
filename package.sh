@@ -9,11 +9,29 @@ if [ -z "$VERSION" ]; then
     VERSION="latest"
 fi
 
-echo "=== Packaging RomCloud v${VERSION} for TrimUI ==="
+TARGET_DEVICE="${TARGET_DEVICE:-brick-pro}"
+case "$TARGET_DEVICE" in
+  brick-pro)
+    TARGET_SLUG="brick-pro"
+    TARGET_NAME="TrimUI Brick Pro"
+    ;;
+  smart-pro-s)
+    TARGET_SLUG="smart-pro-s"
+    TARGET_NAME="TrimUI Smart Pro S"
+    ;;
+  *) echo "Unsupported TARGET_DEVICE: $TARGET_DEVICE" >&2; exit 2 ;;
+esac
+
+if [ "$TARGET_DEVICE" = "smart-pro-s" ]; then
+    VERSION=$(grep '"SMART_PRO_S_version"' version.json | head -n 1 | awk -F'"' '{print $4}')
+fi
+
+echo "=== Packaging RomCloud v${VERSION} for ${TARGET_NAME} ==="
 
 DIST_DIR="$SCRIPT_DIR/dist"
 STAGING_DIR="$DIST_DIR/staging"
-ZIP_NAME="RomCloud-v${VERSION}.zip"
+ZIP_NAME="RomCloud-${TARGET_SLUG}-v${VERSION}.zip"
+LITE_NAME="RomCloud-${TARGET_SLUG}-Lite-Installer.zip"
 
 rm -rf "$STAGING_DIR"
 mkdir -p "$STAGING_DIR/Apps/RomCloud/bin"
@@ -56,6 +74,7 @@ cp assets/apps_icons/*.png "$STAGING_DIR/Apps/RomCloud/assets/apps_icons/" 2>/de
 cp -r assets/player_icons/* "$STAGING_DIR/Apps/RomCloud/assets/player_icons/" 2>/dev/null || true
 cp assets/button_icons/*.png "$STAGING_DIR/Apps/RomCloud/assets/button_icons/" 2>/dev/null || true
 cp config/settings.json "$STAGING_DIR/Apps/RomCloud/config/"
+cp config/reporting.json "$STAGING_DIR/Apps/RomCloud/config/"
 if [ -d config ]; then
     cp -f config/*.conf "$STAGING_DIR/Apps/RomCloud/config/" 2>/dev/null || true
 fi
@@ -67,9 +86,9 @@ chmod +x "$STAGING_DIR/Apps/RomCloud/launch.sh" "$STAGING_DIR/Apps/RomCloud/bin/
 
 # Create Lite Installer zip (no heavy mpv/lib bundles, only ~5MB, ideal for first-time copy)
 mkdir -p "$DIST_DIR"
-rm -f "$DIST_DIR/$ZIP_NAME" "$DIST_DIR/RomCloud-Lite-Installer.zip" "$DIST_DIR/mpv_bundle.zip"
+rm -f "$DIST_DIR/$ZIP_NAME" "$DIST_DIR/$LITE_NAME" "$DIST_DIR/mpv_bundle-${TARGET_SLUG}.zip"
 cd "$STAGING_DIR"
-zip -r "$DIST_DIR/RomCloud-Lite-Installer.zip" Apps
+python3 "$SCRIPT_DIR/tools/create_zip.py" "$DIST_DIR/$LITE_NAME" Apps
 
 # Now add mpv and libraries for Full package
 cd "$SCRIPT_DIR"
@@ -80,20 +99,45 @@ fi
 if [ -d lib ]; then
     cp -P lib/*.so* "$STAGING_DIR/Apps/RomCloud/lib/" 2>/dev/null || true
 fi
+if [ "$TARGET_DEVICE" = "smart-pro-s" ]; then
+    rm -f "$STAGING_DIR/Apps/RomCloud/lib/libSDL2"*.so* 2>/dev/null || true
+fi
 
 # Create Full package zip
 cd "$STAGING_DIR"
-zip -r "$DIST_DIR/$ZIP_NAME" Apps
+python3 "$SCRIPT_DIR/tools/create_zip.py" "$DIST_DIR/$ZIP_NAME" Apps
 
 # Create mpv_bundle.zip for OTA update delivery
 cd "$STAGING_DIR/Apps/RomCloud"
-zip -r -9 "$DIST_DIR/mpv_bundle.zip" bin/mpv lib bin/yt-dlp bin/yt-dlp-glibc scripts assets/player_icons assets/apps_icons/YOUTUBE.png
+python3 "$SCRIPT_DIR/tools/create_zip.py" "$DIST_DIR/mpv_bundle-${TARGET_SLUG}.zip" \
+    bin/mpv lib bin/yt-dlp bin/yt-dlp-glibc scripts assets/player_icons assets/apps_icons/YOUTUBE.png
 cd "$SCRIPT_DIR"
 rm -rf "$STAGING_DIR"
 
-cp -f bin/RomCloud "$DIST_DIR/RomCloud"
+cp -f bin/RomCloud "$DIST_DIR/RomCloud-${TARGET_SLUG}"
 cp -f launch.sh "$DIST_DIR/launch.sh"
 cp -f icon.png "$DIST_DIR/icon.png"
+if [ "$TARGET_DEVICE" = "smart-pro-s" ]; then
+    cp -f RELEASE_NOTES_SMART_PRO_S.md "$DIST_DIR/RELEASE_NOTES_SMART_PRO_S.md"
+    cd "$DIST_DIR"
+    sha256sum \
+        "RomCloud-${TARGET_SLUG}" \
+        "$LITE_NAME" \
+        "$ZIP_NAME" \
+        "mpv_bundle-${TARGET_SLUG}.zip" \
+        > "SHA256SUMS-${TARGET_SLUG}-v${VERSION}.txt"
+    cd "$SCRIPT_DIR"
+else
+    cp -f RELEASE_NOTES_BRICK_PRO.md "$DIST_DIR/RELEASE_NOTES_BRICK_PRO.md"
+    cd "$DIST_DIR"
+    sha256sum \
+        "RomCloud-${TARGET_SLUG}" \
+        "$LITE_NAME" \
+        "$ZIP_NAME" \
+        "mpv_bundle-${TARGET_SLUG}.zip" \
+        > "SHA256SUMS-${TARGET_SLUG}-v${VERSION}.txt"
+    cd "$SCRIPT_DIR"
+fi
 
 echo "=== Release Packages Created Successfully ==="
-ls -lh "$DIST_DIR/RomCloud-Lite-Installer.zip" "$DIST_DIR/$ZIP_NAME" "$DIST_DIR/mpv_bundle.zip" "$DIST_DIR/RomCloud" "$DIST_DIR/icon.png"
+ls -lh "$DIST_DIR/$LITE_NAME" "$DIST_DIR/$ZIP_NAME" "$DIST_DIR/mpv_bundle-${TARGET_SLUG}.zip" "$DIST_DIR/RomCloud-${TARGET_SLUG}" "$DIST_DIR/icon.png"

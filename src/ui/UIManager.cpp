@@ -4247,6 +4247,8 @@ void UIManager::renderDiagnosticsState() {
     };
 
     std::vector<DiagRow> rows = {
+        {"Mã thiết bị", diag.hardwareId, {34, 197, 94, 255}},
+        {"Model", diag.deviceModel, {255, 255, 255, 255}},
         {UiStrings::DIAG_HW_DEVICE, diag.socName, {255, 255, 255, 255}},
         {UiStrings::DIAG_CPU_ARCH, diag.cpuArch + std::string(UiStrings::DIAG_VAL_64BIT), {255, 255, 255, 255}},
         {UiStrings::DIAG_OS_KERNEL, diag.osName + " " + diag.kernelRelease, {255, 255, 255, 255}},

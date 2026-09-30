@@ -6,7 +6,8 @@ namespace RomCloud {
 
 enum class DeviceType {
     TRIMUI_BRICK_PRO,     // 1024x768 (4:3)
-    TRIMUI_SMART_PRO,      // 640x480 (4:3)
+    TRIMUI_SMART_PRO,     // TG5040, 1280x720 (16:9)
+    TRIMUI_SMART_PRO_S,   // TG5050, 1280x720 (16:9)
     TRIMUI_BETA,           // 480x320 (3:2)
     POCKETGO,              // 320x240 (4:3)
     UNKNOWN
@@ -21,6 +22,8 @@ enum class AspectRatio {
 
 struct SystemDiagnostics {
     std::string appVersion;
+    std::string hardwareId;
+    std::string deviceModel;
     std::string buildDate;
     std::string osName;
     std::string kernelRelease;

@@ -1,0 +1,10 @@
+name = "romcloud-issue-relay"
+main = "worker.js"
+compatibility_date = "2026-09-30"
+
+[vars]
+GITHUB_REPO = "nlkcodenew/RomCloud-diagnostics"
+
+[[kv_namespaces]]
+binding = "REPORTS"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"

@@ -4,30 +4,26 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-ZIG="${ZIG:-/Users/tai/.gemini/antigravity-ide/brain/00d3b56c-d55c-4262-81a8-0cf5fe35825f/tools/zig-macos-aarch64-0.13.0/zig}"
-if [ ! -f "$ZIG" ] && command -v zig &>/dev/null; then
-    ZIG="zig"
+SDK_ROOT="${SDK_ROOT:-/tmp/tg5050-sdk-romcloud/sdk_tg5050_linux_v1.0.0}"
+CXX="$SDK_ROOT/host/bin/aarch64-none-linux-gnu-g++"
+SYSROOT="$SDK_ROOT/host/aarch64-buildroot-linux-gnu/sysroot"
+
+if [ ! -x "$CXX" ]; then
+    echo "TG5050 SDK compiler not found: $CXX" >&2
+    exit 1
 fi
 
-TARGET_DEVICE="${TARGET_DEVICE:-brick-pro}"
-case "$TARGET_DEVICE" in
-  brick-pro) BUILD_DEFINE="ROMCLOUD_TARGET_BRICK_PRO"; TARGET_NAME="TrimUI Brick Pro" ;;
-  smart-pro-s) BUILD_DEFINE="ROMCLOUD_TARGET_SMART_PRO_S"; TARGET_NAME="TrimUI Smart Pro S" ;;
-  *) echo "Unsupported TARGET_DEVICE: $TARGET_DEVICE" >&2; exit 2 ;;
-esac
-
-echo "=== Compiling RomCloud for ${TARGET_NAME} (aarch64-linux-gnu.2.33) ==="
+echo "=== Compiling RomCloud for TrimUI Smart Pro S (TG5050 SDK) ==="
 mkdir -p bin
 
-"$ZIG" c++ \
-    -target aarch64-linux-gnu.2.33 \
+"$CXX" \
     -std=c++17 \
     -O3 \
     -Wall -Wextra \
-    -D${BUILD_DEFINE}=1 \
+    -DROMCLOUD_TARGET_SMART_PRO_S=1 \
     -Isrc \
-    -Isysroot/include \
-    -Isysroot/include/SDL2 \
+    -I"$SYSROOT/usr/include" \
+    -I"$SYSROOT/usr/include/SDL2" \
     src/main.cpp \
     src/app/Application.cpp \
     src/ui/UIManager.cpp \
@@ -57,7 +53,8 @@ mkdir -p bin
     src/rom/RomDetector.cpp \
     src/rom/RomOrganizer.cpp \
     src/localsend/LocalSendManager.cpp \
-    -Lsysroot/lib \
+    -L"$SYSROOT/usr/lib" \
+    -Wl,-rpath-link,"$SYSROOT/usr/lib" \
     -lSDL2 \
     -lSDL2_image \
     -lSDL2_ttf \
@@ -68,9 +65,9 @@ mkdir -p bin
     -lpthread \
     -ldl \
     -lm \
-    -s \
     -o bin/RomCloud
 
+"$SDK_ROOT/host/bin/aarch64-none-linux-gnu-strip" --strip-unneeded bin/RomCloud
 echo "=== Build Successful: bin/RomCloud ==="
 ls -lh bin/RomCloud
 file bin/RomCloud

@@ -124,6 +124,12 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
   std::string bundleUrl = "";
   std::string osBundleUrl = "";
 
+#if defined(ROMCLOUD_TARGET_SMART_PRO_S)
+  remoteVer = JsonHelper::extractString(mResp.body, "SMART_PRO_S_version");
+  binUrl = JsonHelper::extractString(mResp.body, "SMART_PRO_S_binary_url");
+  bundleUrl = JsonHelper::extractString(mResp.body, "SMART_PRO_S_bundle_url");
+#endif
+
   if (mResp.success && !mResp.body.empty() && mResp.statusCode == 200) {
     // 1. Check target_os
     targetOs = JsonHelper::extractString(mResp.body, "target_os");
@@ -161,6 +167,7 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
     }
 
     // 2. Version determination: check OS-specific override first, then general version
+#if !defined(ROMCLOUD_TARGET_SMART_PRO_S)
     std::string osVer = JsonHelper::extractString(mResp.body, osKey + "_version");
     if (osVer.empty()) {
       osVer = JsonHelper::extractString(mResp.body, osKey);
@@ -170,13 +177,16 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
     } else {
       remoteVer = JsonHelper::extractString(mResp.body, "version");
     }
+#endif
 
     iconUrl = JsonHelper::extractString(mResp.body, "icon_url");
 
+#if !defined(ROMCLOUD_TARGET_SMART_PRO_S)
     binUrl = JsonHelper::extractString(mResp.body, "binary_url");
     if (binUrl.empty())
       binUrl = JsonHelper::extractString(mResp.body, "download_url");
     bundleUrl = JsonHelper::extractString(mResp.body, "bundle_url");
+#endif
     osBundleUrl = JsonHelper::extractString(mResp.body, "os_bundle_url");
 
     // Check for OS-specific bundle (check osKey first e.g. SPRUCE_OS_bundle_url, then osType)
@@ -195,19 +205,26 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
       changelog = JsonHelper::extractString(mResp.body, "changelog");
     }
     relDate = JsonHelper::extractString(mResp.body, "release_date");
+#if defined(ROMCLOUD_TARGET_SMART_PRO_S)
+    std::string deviceReleaseDate = JsonHelper::extractString(mResp.body, "SMART_PRO_S_release_date");
+    if (!deviceReleaseDate.empty()) relDate = deviceReleaseDate;
+#endif
   }
 
   // 2. Fallback to GitHub Releases API if manifest was empty
   if (remoteVer.empty()) {
     Logger::info("Checking GitHub Releases API as fallback...");
-    std::string apiEndpoint = "https://api.github.com/repos/" +
-                              std::string(GITHUB_REPO) + "/releases/latest";
+    std::string apiEndpoint = "https://api.github.com/repos/" + std::string(GITHUB_REPO) +
+                              "/releases/tags/" + std::string(RELEASE_TAG_PREFIX) + APP_VERSION;
     HttpResponse resp = HttpClient::instance().get(apiEndpoint, headers);
     if (resp.success && !resp.body.empty() && resp.statusCode == 200) {
       std::string tag = JsonHelper::extractString(resp.body, "tag_name");
       if (!tag.empty()) {
         remoteVer = tag;
-        if (remoteVer.front() == 'v' || remoteVer.front() == 'V') {
+        const std::string tagPrefix = RELEASE_TAG_PREFIX;
+        if (remoteVer.rfind(tagPrefix, 0) == 0) {
+          remoteVer.erase(0, tagPrefix.size());
+        } else if (remoteVer.front() == 'v' || remoteVer.front() == 'V') {
           remoteVer.erase(0, 1);
         }
         changelog = JsonHelper::extractString(resp.body, "body");
@@ -221,11 +238,11 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
           std::string name = JsonHelper::extractString(asset, "name");
           std::string url = JsonHelper::extractString(asset, "browser_download_url");
 
-          if (name == "RomCloud" || name == "RomCloud.bin") {
+          if (name == RELEASE_BINARY_NAME || name == "RomCloud" || name == "RomCloud.bin") {
             binUrl = url;
           } else if (name == "icon.png" || name == "APP.png") {
             iconUrl = url;
-          } else if (name == "mpv_bundle.zip" || name == "mpv_bundle-" + osType + ".zip") {
+          } else if (name == RELEASE_BUNDLE_NAME || name == "mpv_bundle.zip" || name == "mpv_bundle-" + osType + ".zip") {
             bundleUrl = url;
           } else if (name.find("_bundle.zip") != std::string::npos) {
             // Check OS-specific bundle
@@ -240,7 +257,7 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
         }
         if (binUrl.empty()) {
           binUrl = "https://github.com/" + std::string(GITHUB_REPO) +
-                   "/releases/download/v" + remoteVer + "/RomCloud";
+                   "/releases/download/" + std::string(RELEASE_TAG_PREFIX) + remoteVer + "/" + RELEASE_BINARY_NAME;
         }
       }
     }
@@ -254,11 +271,11 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
   // Build default URLs if not found
   if (binUrl.empty()) {
     binUrl = "https://github.com/" + std::string(GITHUB_REPO) +
-             "/releases/download/v" + remoteVer + "/RomCloud";
+              "/releases/download/" + std::string(RELEASE_TAG_PREFIX) + remoteVer + "/" + RELEASE_BINARY_NAME;
   }
   if (bundleUrl.empty()) {
     bundleUrl = "https://github.com/" + std::string(GITHUB_REPO) +
-                "/releases/download/v" + remoteVer + "/mpv_bundle.zip";
+                "/releases/download/" + std::string(RELEASE_TAG_PREFIX) + remoteVer + "/" + RELEASE_BUNDLE_NAME;
   }
   if (iconUrl.empty()) {
     iconUrl = "https://raw.githubusercontent.com/" + std::string(GITHUB_REPO) + "/main/icon.png";

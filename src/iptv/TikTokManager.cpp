@@ -3,6 +3,7 @@
 #include "../logging/Logger.h"
 #include "../network/HttpClient.h"
 #include "../network/JsonHelper.h"
+#include <algorithm>
 #include <cstdio>
 #include <sstream>
 #include <sys/stat.h>
