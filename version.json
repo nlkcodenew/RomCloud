@@ -1,25 +1,25 @@
 {
-  "version": "2.2.3",
+  "version": "2.2.4",
   "release_date": "2026-09-30",
   "target_os": "ALL",
   "device_channels": {
-    "brick-pro": "v2.2.3",
-    "smart-pro-s": "v2.2.3"
+    "brick-pro": "v2.2.4",
+    "smart-pro-s": "v2.2.4"
   },
-  "SMART_PRO_S_version": "2.2.3",
+  "SMART_PRO_S_version": "2.2.4",
   "SMART_PRO_S_release_date": "2026-09-30",
-  "SMART_PRO_S_package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.3/RomCloud-smart-pro-s-v2.2.3.zip",
-  "SMART_PRO_S_package_sha256": "95809e47b1fd81bc27849fcf5c4888d6258520bb082ae0ed24ccdc3f9225acce",
+  "SMART_PRO_S_package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.4/RomCloud-smart-pro-s-v2.2.4.zip",
+  "SMART_PRO_S_package_sha256": "2a362d44d60ddaa92782dba33db03c6e567dab0936f16f5016b13213e19e826c",
   "SMART_PRO_S_binary_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/bin/RomCloud-smart-pro-s",
   "icon_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/icon.png",
-  "package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.3/RomCloud-brick-pro-v2.2.3.zip",
-  "package_sha256": "03dc30505dd205de2ffcb1b4c37848d5939a2a0026caf0ccce5db1e327aab938",
+  "package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.4/RomCloud-brick-pro-v2.2.4.zip",
+  "package_sha256": "8bdd11ec4f94baa6dbb30967c5fd8377d91aabb5ded05f7fb11ed80eb3efa8ad",
   "binary_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/bin/RomCloud",
   "os_versions": {
-    "STOCK_PS": "2.2.3",
-    "NEXTUI": "2.2.3",
-    "SPRUCE_OS": "2.2.3"
+    "STOCK_PS": "2.2.4",
+    "NEXTUI": "2.2.4",
+    "SPRUCE_OS": "2.2.4"
   },
-  "SMART_PRO_S_changelog": "Giao diện dashboard mới chuyên nghiệp hơn, thêm nút xóa log cũ và giảm log nhiễu từ ảnh bìa không tồn tại.",
-  "changelog": "Giao diện dashboard mới chuyên nghiệp hơn, thêm nút xóa log cũ và giảm log nhiễu từ ảnh bìa không tồn tại."
+  "SMART_PRO_S_changelog": "Sửa lỗi YouTube tự quay về danh sách khi MPV thoát sớm, ghi nhận exit code và gộp log MPV YouTube/TikTok vào GitHub Issues.",
+  "changelog": "Sửa lỗi YouTube tự quay về danh sách khi MPV thoát sớm, ghi nhận exit code và gộp log MPV YouTube/TikTok vào GitHub Issues."
 }

@@ -305,7 +305,9 @@ void UIManager::update() {
             std::string vid = m_ytPendingVideoId;
             m_ytPendingStreamUrl.clear();
             m_ytPendingVideoId.clear();
-            IPTVManager::instance().playYouTubeVideo(vid, url, "360");
+            if (!IPTVManager::instance().playYouTubeVideo(vid, url, "360")) {
+                showToast("Không thể phát video YouTube. Đã gửi log chẩn đoán.", {239, 68, 68, 255}, 4500);
+            }
             setState(UIState::YOUTUBE_RESULTS);
         } else {
             showToast("Không thể lấy link phát video", {239, 68, 68, 255}, 3000);
@@ -332,7 +334,9 @@ void UIManager::update() {
             }
 
             if (!feed.empty()) {
-                IPTVManager::instance().playTikTokFeed(feed, 0, m_ttLastSearchQuery);
+                if (!IPTVManager::instance().playTikTokFeed(feed, 0, m_ttLastSearchQuery)) {
+                    showToast("Không thể phát TikTok. Đã gửi log chẩn đoán.", {239, 68, 68, 255}, 4500);
+                }
                 setState(UIState::TIKTOK_SEARCH);
             } else {
                 showToast("Không tìm thấy link phát TikTok", {239, 68, 68, 255}, 3000);
@@ -358,7 +362,9 @@ void UIManager::update() {
             m_ttPendingVideoId.clear();
             m_ttPendingTitle.clear();
             std::vector<TikTokVideo> singleFeed = { v };
-            IPTVManager::instance().playTikTokFeed(singleFeed, 0, "Video");
+            if (!IPTVManager::instance().playTikTokFeed(singleFeed, 0, "Video")) {
+                showToast("Không thể phát TikTok. Đã gửi log chẩn đoán.", {239, 68, 68, 255}, 4500);
+            }
             setState(UIState::TIKTOK_SEARCH);
         } else {
             showToast("Không thể kết nối luồng phát video", {239, 68, 68, 255}, 3000);
@@ -931,6 +937,10 @@ void UIManager::update() {
             if (m_confirmClearLogs) {
                 if (input.isButtonJustPressed(Button::A)) {
                     std::remove((AppConfig::instance().getDataDir() + "/pending_issue_report").c_str());
+                    const std::string appRoot = AppConfig::instance().getAppRoot();
+                    std::remove((appRoot + "/youtube_mpv.log").c_str());
+                    std::remove((appRoot + "/tiktok_mpv.log").c_str());
+                    std::remove("/tmp/iptv_debug.log");
                     if (Logger::instance().clear()) {
                         showToast("Đã xóa log cũ. Nhật ký mới bắt đầu từ đây.", {34, 197, 94, 255}, 3500);
                     } else {
@@ -4019,7 +4029,7 @@ void UIManager::renderSettingsState() {
     items.push_back({UiStrings::SETTING_COVER_CACHE, UiStrings::SETTING_COVER_CACHE_VAL, SDL_Color{34, 197, 94, 255}, "", SDL_Color{0, 0, 0, 0}, SDL_Color{0, 0, 0, 0}});
 
     // 9: Xóa nhật ký cũ
-    items.push_back({"Nhật ký chẩn đoán", "Xóa debug.log và debug.log.old", SDL_Color{248, 113, 113, 255}, "[A] Xóa log", SDL_Color{127, 29, 29, 255}, SDL_Color{255, 255, 255, 255}});
+    items.push_back({"Nhật ký chẩn đoán", "Xóa log ứng dụng, YouTube và TikTok", SDL_Color{248, 113, 113, 255}, "[A] Xóa log", SDL_Color{127, 29, 29, 255}, SDL_Color{255, 255, 255, 255}});
 
     // 10: Xuất sao lưu cài đặt
     items.push_back({UiStrings::BACKUP_EXPORT_BTN, UiStrings::BACKUP_EXPORT_DESC, SDL_Color{168, 85, 247, 255}, "[A] Xuất sao lưu", SDL_Color{88, 28, 135, 255}, SDL_Color{255, 255, 255, 255}});
@@ -4099,7 +4109,7 @@ void UIManager::renderSettingsState() {
         drawRoundedRect(modalX, modalY, modalW, modalH, UiTheme::RADIUS_MODAL, {17, 24, 39, 255}, true);
         drawRoundedBorder(modalX, modalY, modalW, modalH, UiTheme::RADIUS_MODAL, UiTheme::ACCENT_RED, 2);
         drawText("XÓA NHẬT KÝ CŨ?", 512, modalY + 28, UiTheme::TEXT_MAIN, m_fontLarge, true);
-        drawText("debug.log và bản xoay vòng sẽ bị xóa vĩnh viễn.", 512, modalY + 90, UiTheme::TEXT_DIM, m_fontSmall, true);
+        drawText("Log ứng dụng, YouTube và TikTok sẽ bị xóa vĩnh viễn.", 512, modalY + 90, UiTheme::TEXT_DIM, m_fontSmall, true);
         drawText("Ứng dụng sẽ tiếp tục ghi log mới ngay sau thao tác này.", 512, modalY + 124, UiTheme::TEXT_SUB, m_fontSmall, true);
         drawBadge(modalX + 54, modalY + 174, 210, 44, "[A] Xóa log", {127, 29, 29, 255}, UiTheme::TEXT_MAIN);
         drawBadge(modalX + modalW - 264, modalY + 174, 210, 44, "[B] Hủy", {51, 65, 85, 255}, UiTheme::TEXT_MAIN);

@@ -19,6 +19,7 @@
 #include <sstream>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <vector>
 
 namespace RomCloud {
 
@@ -129,8 +130,17 @@ std::string IssueLogger::readRelayUrl() const {
 
 std::string IssueLogger::readLogTail() const {
     const std::string currentPath = Logger::instance().getLogFilePath();
+    const std::string appRoot = AppConfig::instance().getAppRoot();
     std::string result;
-    for (const auto& path : {currentPath + ".old", currentPath}) {
+    const std::vector<std::pair<std::string, std::string>> logFiles = {
+        {"DEBUG_PREVIOUS", currentPath + ".old"},
+        {"DEBUG_CURRENT", currentPath},
+        {"YOUTUBE_MPV", appRoot + "/youtube_mpv.log"},
+        {"TIKTOK_MPV", appRoot + "/tiktok_mpv.log"}
+    };
+    for (const auto& entry : logFiles) {
+        const std::string& label = entry.first;
+        const std::string& path = entry.second;
         std::ifstream file(path, std::ios::binary);
         if (!file.is_open()) continue;
         file.seekg(0, std::ios::end);
@@ -138,8 +148,10 @@ std::string IssueLogger::readLogTail() const {
         file.seekg(std::max<std::streamoff>(0, size - static_cast<std::streamoff>(MAX_LOG_BYTES)));
         std::stringstream buffer;
         buffer << file.rdbuf();
-        if (!result.empty()) result += "\n--- NEXT LOG FILE ---\n";
+        if (!result.empty()) result += "\n";
+        result += "--- BEGIN " + label + " [" + path + "] ---\n";
         result += buffer.str();
+        result += "\n--- END " + label + " ---\n";
         if (result.size() > MAX_LOG_BYTES) result.erase(0, result.size() - MAX_LOG_BYTES);
     }
     return result;

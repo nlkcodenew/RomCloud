@@ -58,6 +58,31 @@ inline std::string resolveOsdFont(const std::string &appRoot) {
     if (access(noto.c_str(), R_OK) == 0) return noto;
     return appRoot + "/assets/fonts/font.ttf";
 }
+
+static std::string describeProcessStatus(int status) {
+    if (WIFEXITED(status)) return "exit_code=" + std::to_string(WEXITSTATUS(status));
+    if (WIFSIGNALED(status)) return "signal=" + std::to_string(WTERMSIG(status));
+    return "status=" + std::to_string(status);
+}
+
+static void importMediaLog(const std::string& label, const std::string& path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) {
+        Logger::instance().header("[MEDIA LOG][" + label + "] file unavailable: " + path);
+        return;
+    }
+    file.seekg(0, std::ios::end);
+    const std::streamoff size = file.tellg();
+    constexpr std::streamoff maxBytes = 128 * 1024;
+    file.seekg(std::max<std::streamoff>(0, size - maxBytes));
+    std::string line;
+    Logger::instance().header("--- BEGIN " + label + " MEDIA LOG ---");
+    while (std::getline(file, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        Logger::instance().header("[MEDIA][" + label + "] " + line);
+    }
+    Logger::instance().header("--- END " + label + " MEDIA LOG ---");
+}
 }
 
 IPTVManager& IPTVManager::instance() {
@@ -1362,13 +1387,8 @@ static std::string fetchYouTubeStreamUrl(const std::string& videoId, const std::
     return streamUrl;
 }
 
-// iptvDbg: log chẩn đoán riêng (Logger chỉ ghi WARN/ERROR ra disk,
-// INFO bị lọc nên không thấy gì khi debug chuyển kênh).
 static void iptvDbg(const std::string& msg) {
-    FILE* f = fopen("/tmp/iptv_debug.log", "a");
-    if (!f) return;
-    fprintf(f, "[%u] %s\n", SDL_GetTicks(), msg.c_str());
-    fclose(f);
+    Logger::debug("[IPTV][CONTROL][" + std::to_string(SDL_GetTicks()) + "] " + msg);
 }
 
 // spawnMpvForUrl: fork mpv moi cho URL da resolve (restart doi kenh).
@@ -2125,7 +2145,8 @@ bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string
                 "--demuxer-max-bytes=16M",
                 "--demuxer-readahead-secs=8",
                 "--audio-buffer=0.5",
-                "--terminal=no",
+                "--terminal=yes",
+                "--msg-level=all=warn",
                 "--osd-level=1",
                 "--osd-font-size=48",
                 "--osd-align-x=center",
@@ -2164,6 +2185,8 @@ bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string
         uint32_t playStartTime = SDL_GetTicks();
         std::string currentQuality = quality.empty() ? "360" : quality;
         bool isPaused = false;
+        bool userStopped = false;
+        bool childExited = false;
         m_overlayExpireTime = 0;
         Logger::info("YouTube player started with PID: " + std::to_string(pid));
 
@@ -2173,7 +2196,11 @@ bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string
         int status = 0;
         while (m_isPlaying && m_mpvPid > 0) {
             pid_t res = waitpid(m_mpvPid, &status, WNOHANG);
-            if (res != 0) break;
+            if (res > 0) {
+                childExited = true;
+                break;
+            }
+            if (res < 0) break;
 
             if (m_overlayExpireTime > 0 && SDL_GetTicks() >= m_overlayExpireTime) {
                 sendMpvIpcCommand("{\"command\":[\"overlay-remove\",0]}");
@@ -2185,6 +2212,7 @@ bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string
 
             if (SDL_GetTicks() - playStartTime >= 600) {
                 if (input.isButtonJustPressed(Button::B) || input.isButtonJustPressed(Button::MENU)) {
+                    userStopped = true;
                     stop();
                     break;
                 } else if (input.isButtonJustPressed(Button::A)) {
@@ -2243,6 +2271,10 @@ bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string
             m_overlayExpireTime = 0;
         }
 
+        const uint32_t runtimeMs = SDL_GetTicks() - playStartTime;
+        const bool abnormalExit = childExited &&
+            (!WIFEXITED(status) || WEXITSTATUS(status) != 0 || runtimeMs < 3000);
+
         unlink("/tmp/stay_awake");
         unlink("/tmp/mpv_youtube.sock");
         m_isPlaying = false;
@@ -2252,7 +2284,16 @@ bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string
         SDL_PumpEvents();
         SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
         InputManager::instance().reset();
-        Logger::info("YouTube player finished");
+        if (!userStopped && abnormalExit) {
+            const std::string mediaLogPath = appRoot + "/youtube_mpv.log";
+            importMediaLog("YOUTUBE_MPV", mediaLogPath);
+            Logger::error("YouTube player exited before playback completed (" +
+                          describeProcessStatus(status) + ", runtime_ms=" +
+                          std::to_string(runtimeMs) + ", video_id=" + videoId + ")");
+            return false;
+        }
+        Logger::info("YouTube player finished (" + describeProcessStatus(status) +
+                     ", runtime_ms=" + std::to_string(runtimeMs) + ")");
         return true;
     }
     return false;
@@ -2446,7 +2487,8 @@ bool IPTVManager::playTikTokFeed(const std::vector<TikTokVideo>& feed, size_t in
             "--osd-level=1",
             "--osd-bar=no",
             "--tls-verify=no",
-            "--terminal=no"
+            "--terminal=yes",
+            "--msg-level=all=warn"
         };
 
         std::string inputConf = appRoot + "/config/input.conf";
@@ -2469,9 +2511,14 @@ bool IPTVManager::playTikTokFeed(const std::vector<TikTokVideo>& feed, size_t in
 
         // Wait for mpv IPC socket
         int status = 0;
+        bool childExited = false;
         for (int i = 0; i < 25; ++i) {
             pid_t res = waitpid(m_mpvPid, &status, WNOHANG);
-            if (res != 0) break;
+            if (res > 0) {
+                childExited = true;
+                break;
+            }
+            if (res < 0) break;
             if (access("/tmp/mpv_tiktok.sock", F_OK) == 0) {
                 SDL_Delay(60);
                 break;
@@ -2499,18 +2546,23 @@ bool IPTVManager::playTikTokFeed(const std::vector<TikTokVideo>& feed, size_t in
         }
 
         uint32_t lastEofCheck = SDL_GetTicks();
+        const uint32_t playStartTime = SDL_GetTicks();
+        bool userStopped = false;
 
         while (m_isPlaying && m_mpvPid > 0) {
             pid_t res = waitpid(m_mpvPid, &status, WNOHANG);
-            if (res != 0) {
+            if (res > 0) {
+                childExited = true;
                 break;
             }
+            if (res < 0) break;
 
             InputManager::instance().update();
 
             if (InputManager::instance().isButtonJustPressed(Button::B) ||
                 InputManager::instance().isButtonJustPressed(Button::MENU) ||
                 InputManager::instance().isButtonJustPressed(Button::SELECT)) {
+                userStopped = true;
                 Logger::info("[TikTok] User pressed B/Menu, stopping player");
                 sendMpvIpcCommand("{\"command\":[\"quit\"]}", nullptr, "/tmp/mpv_tiktok.sock");
                 break;
@@ -2560,19 +2612,32 @@ bool IPTVManager::playTikTokFeed(const std::vector<TikTokVideo>& feed, size_t in
             SDL_Delay(30);
         }
 
+        const uint32_t runtimeMs = SDL_GetTicks() - playStartTime;
+        const bool abnormalExit = childExited &&
+            (!WIFEXITED(status) || WEXITSTATUS(status) != 0 || runtimeMs < 3000);
+
         unlink("/tmp/stay_awake");
         unlink("/tmp/mpv_tiktok.sock");
 
         m_mpvPid = -1;
         m_isPlaying = false;
         m_currentChannel = "";
-        Logger::info("[TikTok] Player closed, returning to UI");
+        if (!userStopped && abnormalExit) {
+            const std::string mediaLogPath = appRoot + "/tiktok_mpv.log";
+            importMediaLog("TIKTOK_MPV", mediaLogPath);
+            Logger::error("TikTok player exited before playback completed (" +
+                          describeProcessStatus(status) + ", runtime_ms=" +
+                          std::to_string(runtimeMs) + ")");
+        } else {
+            Logger::info("[TikTok] Player closed (" + describeProcessStatus(status) +
+                         ", runtime_ms=" + std::to_string(runtimeMs) + ")");
+        }
 
         SDL_PumpEvents();
         SDL_FlushEvents(SDL_FIRSTEVENT, SDL_LASTEVENT);
         InputManager::instance().reset();
 
-        return true;
+        return !abnormalExit;
     }
 
     unlink("/tmp/stay_awake");
