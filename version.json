@@ -1,25 +1,25 @@
 {
-  "version": "2.2.5",
+  "version": "2.2.6",
   "release_date": "2026-09-30",
   "target_os": "ALL",
   "device_channels": {
-    "brick-pro": "v2.2.5",
-    "smart-pro-s": "v2.2.5"
+    "brick-pro": "v2.2.6",
+    "smart-pro-s": "v2.2.6"
   },
-  "SMART_PRO_S_version": "2.2.5",
+  "SMART_PRO_S_version": "2.2.6",
   "SMART_PRO_S_release_date": "2026-09-30",
-  "SMART_PRO_S_package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.5/RomCloud-smart-pro-s-v2.2.5.zip",
-  "SMART_PRO_S_package_sha256": "3021461929b105bd3d12f4832ed642e56a572e1eeb216f65ce4716f916923b10",
+  "SMART_PRO_S_package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.6/RomCloud-smart-pro-s-v2.2.6.zip",
+  "SMART_PRO_S_package_sha256": "2f77a8026ae45df2051e96fbf5da11e0e1b658b635d49eb67a17531dd257286f",
   "SMART_PRO_S_binary_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/bin/RomCloud-smart-pro-s",
   "icon_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/icon.png",
-  "package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.5/RomCloud-brick-pro-v2.2.5.zip",
-  "package_sha256": "eac7e572ec8855b25ea2d036b3ff37ccbfb51c3201489746cc49ad29f1b5abf4",
+  "package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.6/RomCloud-brick-pro-v2.2.6.zip",
+  "package_sha256": "209ee452e4ecaceb4b99fdae95988a88c704683cfcb49f4fe678ae577a82a877",
   "binary_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/bin/RomCloud",
   "os_versions": {
-    "STOCK_PS": "2.2.5",
-    "NEXTUI": "2.2.5",
-    "SPRUCE_OS": "2.2.5"
+    "STOCK_PS": "2.2.6",
+    "NEXTUI": "2.2.6",
+    "SPRUCE_OS": "2.2.6"
   },
-  "SMART_PRO_S_changelog": "Sửa lỗi YouTube 403 bằng luồng H.264 + M4A tương thích MPV; gộp log resolver yt-dlp vào GitHub Issues và tự bỏ URL lỗi khỏi cache.",
-  "changelog": "Sửa lỗi YouTube 403 bằng luồng H.264 + M4A tương thích MPV; gộp log resolver yt-dlp vào GitHub Issues và tự bỏ URL lỗi khỏi cache."
+  "SMART_PRO_S_changelog": "Sửa lỗi video YouTube thứ hai/thứ ba không phát: thử client Android MP4 khi client mặc định báo không khả dụng; giảm thời gian chờ và giữ log chẩn đoán.",
+  "changelog": "Sửa lỗi video YouTube thứ hai/thứ ba không phát: thử client Android MP4 khi client mặc định báo không khả dụng; giảm thời gian chờ và giữ log chẩn đoán."
 }

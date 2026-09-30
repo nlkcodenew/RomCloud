@@ -69,9 +69,11 @@ case "$1" in
 
         FORMAT="bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]/best[height<=720][vcodec^=avc1]/best[height<=720]"
         case "$QUALITY" in
-            720) FORMAT="bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]/best[height<=720][vcodec^=avc1]/best[height<=720]" ;;
-            360) FORMAT="bestvideo[height<=360][vcodec^=avc1]+bestaudio[acodec^=mp4a]/best[height<=360][vcodec^=avc1]/best[height<=360]" ;;
+            720) FORMAT="bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]/best[height<=720][vcodec^=avc1]/best[height<=720]"; ANDROID_FORMAT="22/18" ;;
+            360) FORMAT="bestvideo[height<=360][vcodec^=avc1]+bestaudio[acodec^=mp4a]/best[height<=360][vcodec^=avc1]/best[height<=360]"; ANDROID_FORMAT="18" ;;
+            *) QUALITY=720 ;;
         esac
+        ANDROID_FORMAT="${ANDROID_FORMAT:-22/18}"
 
         : > /tmp/romcloud_youtube_error.log
         echo "RomCloud resolver: video_id=${VIDEO_ID} quality=${QUALITY} format=${FORMAT}" >>/tmp/romcloud_youtube_error.log
@@ -99,10 +101,28 @@ case "$1" in
             exit 0
         fi
 
-        echo "RomCloud resolver: primary extraction returned no playable URL; retrying without cache" >>/tmp/romcloud_youtube_error.log
-        rm -rf /tmp/yt_cache 2>>/tmp/romcloud_youtube_error.log
+        echo "RomCloud resolver: default clients unavailable; trying Android progressive stream" >>/tmp/romcloud_youtube_error.log
         RAW_URLS=$("$YTDLP" -g \
             --cache-dir /tmp/yt_cache \
+            --no-check-certificates \
+            --extractor-args "youtube:player_client=android" \
+            --socket-timeout 15 --retries 2 -f "${ANDROID_FORMAT}/best[height<=${QUALITY}][vcodec^=avc1][acodec^=mp4a]" \
+            "https://www.youtube.com/watch?v=${VIDEO_ID}" 2>>"/tmp/romcloud_youtube_error.log")
+        V_URL=$(echo "$RAW_URLS" | sed -n '1p')
+        A_URL=$(echo "$RAW_URLS" | sed -n '2p')
+
+        if [ -n "$V_URL" ] && [ "${V_URL#http}" != "$V_URL" ]; then
+            if [ -n "$A_URL" ] && [ "${A_URL#http}" != "$A_URL" ]; then
+                echo "${V_URL}|${A_URL}"
+            else
+                echo "${V_URL}"
+            fi
+            exit 0
+        fi
+
+        echo "RomCloud resolver: Android unavailable; retrying default clients without cache" >>/tmp/romcloud_youtube_error.log
+        RAW_URLS=$("$YTDLP" -g \
+            --no-cache-dir \
             --no-check-certificates \
             --socket-timeout 15 --retries 2 -f "$FORMAT" \
             "https://www.youtube.com/watch?v=${VIDEO_ID}" 2>>"/tmp/romcloud_youtube_error.log")
