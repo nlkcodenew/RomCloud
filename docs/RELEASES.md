@@ -72,4 +72,4 @@ Before creating tags:
 
 ## Current Release
 
-- Both devices: `v2.2.4`
+- Both devices: `v2.2.5`

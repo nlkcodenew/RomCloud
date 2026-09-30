@@ -67,23 +67,25 @@ case "$1" in
         # Clean stale PyInstaller temp folders to prevent decompression errors
         rm -rf /tmp/_MEI* 2>/dev/null
 
-        FORMAT="18/22/best[height<=720]/best"
+        FORMAT="bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]/best[height<=720][vcodec^=avc1]/best[height<=720]"
         case "$QUALITY" in
-            720) FORMAT="22/best[height<=720]/best" ;;
-            360) FORMAT="18/best[height<=360]" ;;
-            *)   FORMAT="18/22/best[height<=720]/best" ;;
+            720) FORMAT="bestvideo[height<=720][vcodec^=avc1]+bestaudio[acodec^=mp4a]/best[height<=720][vcodec^=avc1]/best[height<=720]" ;;
+            360) FORMAT="bestvideo[height<=360][vcodec^=avc1]+bestaudio[acodec^=mp4a]/best[height<=360][vcodec^=avc1]/best[height<=360]" ;;
         esac
 
-        # Prefer yt-dlp's current default clients; forcing Android now requires
-        # PO tokens for many videos and commonly returns no formats.
+        : > /tmp/romcloud_youtube_error.log
+        echo "RomCloud resolver: video_id=${VIDEO_ID} quality=${QUALITY} format=${FORMAT}" >>/tmp/romcloud_youtube_error.log
+
+        # Let yt-dlp select its current working client. Request separate H.264
+        # video and M4A audio streams because progressive formats 18/22 are no
+        # longer exposed consistently by YouTube.
         RAW_URLS=$("$YTDLP" -g \
             --cache-dir /tmp/yt_cache \
-            --no-warnings \
             --no-check-certificates \
             -f "$FORMAT" \
             --socket-timeout 12 \
             --retries 2 \
-            "https://www.youtube.com/watch?v=${VIDEO_ID}" 2>"/tmp/romcloud_youtube_error.log")
+            "https://www.youtube.com/watch?v=${VIDEO_ID}" 2>>"/tmp/romcloud_youtube_error.log")
 
         V_URL=$(echo "$RAW_URLS" | sed -n '1p')
         A_URL=$(echo "$RAW_URLS" | sed -n '2p')
@@ -97,10 +99,11 @@ case "$1" in
             exit 0
         fi
 
-        # Fallback through clients that do not require an Android PO token.
+        echo "RomCloud resolver: primary extraction returned no playable URL; retrying without cache" >>/tmp/romcloud_youtube_error.log
+        rm -rf /tmp/yt_cache 2>>/tmp/romcloud_youtube_error.log
         RAW_URLS=$("$YTDLP" -g \
+            --cache-dir /tmp/yt_cache \
             --no-check-certificates \
-            --extractor-args "youtube:player_client=web_safari,android_vr" \
             --socket-timeout 15 --retries 2 -f "$FORMAT" \
             "https://www.youtube.com/watch?v=${VIDEO_ID}" 2>>"/tmp/romcloud_youtube_error.log")
         V_URL=$(echo "$RAW_URLS" | sed -n '1p')

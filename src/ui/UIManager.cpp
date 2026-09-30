@@ -36,6 +36,8 @@
 
 namespace RomCloud {
 
+static std::mutex s_ytStreamMutex;
+
 UIManager& UIManager::instance() {
     static UIManager instance;
     return instance;
@@ -306,6 +308,9 @@ void UIManager::update() {
             m_ytPendingStreamUrl.clear();
             m_ytPendingVideoId.clear();
             if (!IPTVManager::instance().playYouTubeVideo(vid, url, "360")) {
+                std::lock_guard<std::mutex> lock(s_ytStreamMutex);
+                m_ytStreamUrlCache.erase(vid);
+                Logger::warn("[YouTube] Removed failed stream URL from cache: " + vid);
                 showToast("Không thể phát video YouTube. Đã gửi log chẩn đoán.", {239, 68, 68, 255}, 4500);
             }
             setState(UIState::YOUTUBE_RESULTS);
@@ -940,6 +945,7 @@ void UIManager::update() {
                     const std::string appRoot = AppConfig::instance().getAppRoot();
                     std::remove((appRoot + "/youtube_mpv.log").c_str());
                     std::remove((appRoot + "/tiktok_mpv.log").c_str());
+                    std::remove("/tmp/romcloud_youtube_error.log");
                     std::remove("/tmp/iptv_debug.log");
                     if (Logger::instance().clear()) {
                         showToast("Đã xóa log cũ. Nhật ký mới bắt đầu từ đây.", {34, 197, 94, 255}, 3500);
@@ -5156,8 +5162,6 @@ static std::string formatViews(const std::string& raw) {
         return raw;
     }
 }
-
-static std::mutex s_ytStreamMutex;
 
 static std::string decodeJsonText(const std::string& raw) {
     std::string out;

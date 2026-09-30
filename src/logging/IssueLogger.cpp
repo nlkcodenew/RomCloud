@@ -135,6 +135,7 @@ std::string IssueLogger::readLogTail() const {
     const std::vector<std::pair<std::string, std::string>> logFiles = {
         {"DEBUG_PREVIOUS", currentPath + ".old"},
         {"DEBUG_CURRENT", currentPath},
+        {"YOUTUBE_RESOLVER", "/tmp/romcloud_youtube_error.log"},
         {"YOUTUBE_MPV", appRoot + "/youtube_mpv.log"},
         {"TIKTOK_MPV", appRoot + "/tiktok_mpv.log"}
     };

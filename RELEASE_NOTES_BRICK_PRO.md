@@ -1,8 +1,7 @@
-# RomCloud 2.2.4 — TrimUI Brick Pro
+# RomCloud 2.2.5 — TrimUI Brick Pro
 
-- Làm mới giao diện trang chủ và Cài đặt theo phong cách dashboard rõ ràng, hiện đại hơn.
-- Thêm nút xóa log cũ có bước xác nhận, đồng thời bắt đầu ngay một nhật ký mới.
-- Loại bỏ log nhiễu do dò ảnh bìa không tồn tại để GitHub Issues chỉ nhận lỗi cần xử lý.
-- Sửa lỗi YouTube tự quay về danh sách khi MPV thoát sớm; hiển thị thông báo lỗi rõ ràng.
-- Ghi nhận exit code/thời gian chạy MPV và gộp log YouTube/TikTok vào báo cáo GitHub Issues.
-- Gộp gói Brick Pro và Smart Pro S vào cùng một trang phát hành để dễ tải và cập nhật.
+- Sửa lỗi video YouTube bị trả về danh sách do URL `ANDROID_VR` nhận HTTP 403.
+- Chọn luồng video H.264 và audio M4A riêng biệt, tương thích với MPV trên thiết bị.
+- Xóa URL phát lỗi khỏi bộ nhớ đệm để lần mở sau luôn lấy link mới.
+- Gộp log resolver yt-dlp vào báo cáo GitHub Issues để chẩn đoán đầy đủ hơn.
+- Nút xóa log giờ xóa cả log resolver YouTube.
