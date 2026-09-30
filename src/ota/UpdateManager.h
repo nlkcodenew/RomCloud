@@ -10,10 +10,10 @@ namespace RomCloud {
 constexpr const char* GITHUB_REPO = "nlkcodenew/RomCloud";
 constexpr const char* VERSION_MANIFEST_URL = "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/version.json";
 #if defined(ROMCLOUD_TARGET_SMART_PRO_S)
-constexpr const char* APP_VERSION = "2.2.6";
+constexpr const char* APP_VERSION = "2.2.7";
 constexpr const char* RELEASE_DEVICE_SLUG = "smart-pro-s";
 #else
-constexpr const char* APP_VERSION = "2.2.6";
+constexpr const char* APP_VERSION = "2.2.7";
 constexpr const char* RELEASE_DEVICE_SLUG = "brick-pro";
 #endif
 constexpr const char* RELEASE_TAG_PREFIX = "v";

@@ -302,19 +302,43 @@ void UIManager::update() {
     // Check if YouTube video stream resolution finished
     if (m_ytVideoReady.exchange(false)) {
         m_ytIsLoadingVideo = false;
+        const bool androidRetry = m_ytPendingAndroidRetry;
+        m_ytPendingAndroidRetry = false;
         if (!m_ytPendingStreamUrl.empty()) {
             std::string url = m_ytPendingStreamUrl;
             std::string vid = m_ytPendingVideoId;
             m_ytPendingStreamUrl.clear();
             m_ytPendingVideoId.clear();
-            if (!IPTVManager::instance().playYouTubeVideo(vid, url, "360")) {
-                std::lock_guard<std::mutex> lock(s_ytStreamMutex);
-                m_ytStreamUrlCache.erase(vid);
-                Logger::warn("[YouTube] Removed failed stream URL from cache: " + vid);
-                showToast("Không thể phát video YouTube. Đã gửi log chẩn đoán.", {239, 68, 68, 255}, 4500);
+            if (!IPTVManager::instance().playYouTubeVideo(vid, url, "360", false)) {
+                {
+                    std::lock_guard<std::mutex> lock(s_ytStreamMutex);
+                    m_ytStreamUrlCache.erase(vid);
+                }
+                std::string appRoot = AppConfig::instance().getAppRoot();
+                if (appRoot.empty()) appRoot = "/mnt/SDCARD/Apps/RomCloud";
+                std::ifstream mediaLog(appRoot + "/youtube_mpv.log");
+                std::string mediaOutput((std::istreambuf_iterator<char>(mediaLog)), std::istreambuf_iterator<char>());
+                if (!androidRetry && !vid.empty() &&
+                    mediaOutput.find("HTTP error 403") != std::string::npos) {
+                    Logger::warn("[YouTube] MPV received HTTP 403; retrying with Android client: " + vid);
+                    m_ytPendingAndroidRetry = true;
+                    m_ytIsLoadingVideo = true;
+                    m_ytPendingVideoId = vid;
+                    std::thread([this, vid]() {
+                        m_ytPendingStreamUrl = resolveYouTubeStreamUrl(vid, true);
+                        m_ytVideoReady = true;
+                    }).detach();
+                } else {
+                    Logger::error("[YouTube] Playback failed after stream resolution/retry: video_id=" + vid);
+                    showToast("Không thể phát video YouTube. Đã gửi log chẩn đoán.", {239, 68, 68, 255}, 4500);
+                }
             }
             setState(UIState::YOUTUBE_RESULTS);
         } else {
+            if (androidRetry) {
+                Logger::error("[YouTube] Android retry could not resolve stream: video_id=" + m_ytPendingVideoId);
+            }
+            m_ytPendingVideoId.clear();
             showToast("Không thể lấy link phát video", {239, 68, 68, 255}, 3000);
         }
     }
@@ -439,6 +463,7 @@ void UIManager::update() {
                     m_ytIsLoadingVideo = false;
                     m_ytVideoReady = false;
                     m_ytPendingStreamUrl.clear();
+                    m_ytPendingAndroidRetry = false;
                     setState(UIState::YOUTUBE_SEARCH);
                 } else if (selectedId == "tiktok") {
                     m_ttSearchQuery.clear();
@@ -5428,10 +5453,10 @@ std::vector<std::string> UIManager::runYouTubeSearch(const std::string& query, i
     return results;
 }
 
-std::string UIManager::resolveYouTubeStreamUrl(const std::string& videoId) {
+std::string UIManager::resolveYouTubeStreamUrl(const std::string& videoId, bool forceAndroid) {
     if (videoId.empty()) return "";
 
-    {
+    if (!forceAndroid) {
         std::lock_guard<std::mutex> lock(s_ytStreamMutex);
         auto it = m_ytStreamUrlCache.find(videoId);
         if (it != m_ytStreamUrlCache.end() && !it->second.empty()) {
@@ -5451,7 +5476,8 @@ std::string UIManager::resolveYouTubeStreamUrl(const std::string& videoId) {
         UpdateManager::instance().checkAndInstallDependencies();
     }
 
-    std::string cmd = "\"" + scriptPath + "\" url \"" + videoId + "\" 360 2>&1";
+    std::string cmd = "\"" + scriptPath + "\" url \"" + videoId + "\" 360" +
+                      (forceAndroid ? " android" : "") + " 2>&1";
 
     Logger::info("[YouTube] Resolving video URL: " + cmd);
     FILE* pipe = popen(cmd.c_str(), "r");
@@ -5585,6 +5611,7 @@ void UIManager::triggerYouTubeSearch() {
 
 void UIManager::playYouTubeVideo(const std::string& videoId) {
     if (videoId.empty() || m_ytIsLoadingVideo) return;
+    m_ytPendingAndroidRetry = false;
 
     // Check if already in memory cache
     auto it = m_ytStreamUrlCache.find(videoId);

@@ -192,6 +192,7 @@ private:
   std::atomic<bool> m_ytVideoReady{false};
   std::string m_ytPendingStreamUrl;
   std::string m_ytPendingVideoId;
+  bool m_ytPendingAndroidRetry = false;
   std::vector<std::string> m_ytSearchHistory;
   int m_ytSelectedTagIndex = 0;
   bool m_ytFocusInTags = false;
@@ -307,7 +308,7 @@ private:
   std::unordered_map<std::string, SDL_Texture*> m_ytThumbnails;
   std::unordered_map<std::string, std::string> m_ytStreamUrlCache;
   std::vector<std::string> runYouTubeSearch(const std::string& query, int page = 1);
-  std::string resolveYouTubeStreamUrl(const std::string& videoId);
+  std::string resolveYouTubeStreamUrl(const std::string& videoId, bool forceAndroid = false);
   void preloadYouTubeStreamUrl(const std::string& videoId);
   void triggerYouTubeSearch();
   void playYouTubeVideo(const std::string& videoId);

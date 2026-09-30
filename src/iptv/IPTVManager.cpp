@@ -2044,8 +2044,12 @@ bool IPTVManager::playYouTubeUrl(const std::string& url) {
     return playYouTubeVideo("", url, "360");
 }
 
-bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string& initialUrl, const std::string& quality) {
+bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string& initialUrl, const std::string& quality, bool reportFailure) {
     stop();
+
+    std::string appRoot = AppConfig::instance().getAppRoot();
+    if (appRoot.empty()) appRoot = "/mnt/SDCARD/Apps/RomCloud";
+    std::remove((appRoot + "/youtube_mpv.log").c_str());
 
     if (initialUrl.empty()) {
         Logger::error("YouTube URL is empty");
@@ -2056,8 +2060,6 @@ bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string
 
     Logger::info("Playing YouTube Video: " + videoId + " (quality=" + quality + ")");
 
-    std::string appRoot = AppConfig::instance().getAppRoot();
-    if (appRoot.empty()) appRoot = "/mnt/SDCARD/Apps/RomCloud";
     std::string sdRoot = AppConfig::instance().getSdRoot();
 
     std::vector<std::string> playerCandidates = {
@@ -2287,9 +2289,11 @@ bool IPTVManager::playYouTubeVideo(const std::string& videoId, const std::string
         if (!userStopped && abnormalExit) {
             const std::string mediaLogPath = appRoot + "/youtube_mpv.log";
             importMediaLog("YOUTUBE_MPV", mediaLogPath);
-            Logger::error("YouTube player exited before playback completed (" +
-                          describeProcessStatus(status) + ", runtime_ms=" +
-                          std::to_string(runtimeMs) + ", video_id=" + videoId + ")");
+            const std::string message = "YouTube player exited before playback completed (" +
+                describeProcessStatus(status) + ", runtime_ms=" +
+                std::to_string(runtimeMs) + ", video_id=" + videoId + ")";
+            if (reportFailure) Logger::error(message);
+            else Logger::warn(message);
             return false;
         }
         Logger::info("YouTube player finished (" + describeProcessStatus(status) +

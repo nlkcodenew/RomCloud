@@ -207,7 +207,7 @@ public:
     bool ensureMediaPlayerAvailable();
 
     int getLastPlayingIndex() const { return m_lastPlayingIndex; }
-    bool playYouTubeVideo(const std::string& videoId, const std::string& initialUrl, const std::string& quality = "360");
+    bool playYouTubeVideo(const std::string& videoId, const std::string& initialUrl, const std::string& quality = "360", bool reportFailure = true);
     bool playYouTubeUrl(const std::string& url);
     bool switchYouTubeQuality(const std::string& videoId, const std::string& targetQuality);
     bool playTikTokFeed(const std::vector<struct TikTokVideo>& feed, size_t initialIndex = 0, const std::string& tagName = "");

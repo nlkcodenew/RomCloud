@@ -1,6 +1,6 @@
-# RomCloud 2.2.6 — TrimUI Smart Pro S
+# RomCloud 2.2.7 — TrimUI Smart Pro S
 
-- Sửa video YouTube hợp lệ bị client mặc định báo "This video is not available".
-- Thử luồng MP4 H.264 + AAC từ client Android khi cần; giữ luồng H.264 + M4A đang phát tốt.
-- Bỏ lần thử lại thừa trước fallback Android, giảm thời gian chờ mở video.
-- Giữ log từng bước resolver trong báo cáo chẩn đoán GitHub Issues.
+- Kiểm tra HTTP 200/206 của video và audio trước khi mở MPV; URL bị 403 chuyển sang Android MP4.
+- Khi MPV vẫn gặp HTTP 403, tự resolve lại với Android và phát lại đúng một lần.
+- Ghi rõ mã HTTP từng luồng, giữ log MPV và chỉ gửi lỗi lên GitHub Issues nếu retry thất bại.
+- Giữ luồng H.264 + M4A chất lượng cao cho các video đã phát ổn định.

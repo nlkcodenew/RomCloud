@@ -1,25 +1,25 @@
 {
-  "version": "2.2.6",
+  "version": "2.2.7",
   "release_date": "2026-09-30",
   "target_os": "ALL",
   "device_channels": {
-    "brick-pro": "v2.2.6",
-    "smart-pro-s": "v2.2.6"
+    "brick-pro": "v2.2.7",
+    "smart-pro-s": "v2.2.7"
   },
-  "SMART_PRO_S_version": "2.2.6",
+  "SMART_PRO_S_version": "2.2.7",
   "SMART_PRO_S_release_date": "2026-09-30",
-  "SMART_PRO_S_package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.6/RomCloud-smart-pro-s-v2.2.6.zip",
-  "SMART_PRO_S_package_sha256": "2f77a8026ae45df2051e96fbf5da11e0e1b658b635d49eb67a17531dd257286f",
+  "SMART_PRO_S_package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.7/RomCloud-smart-pro-s-v2.2.7.zip",
+  "SMART_PRO_S_package_sha256": "b38b91fd171fbe30cbd104a138851615f38622d239b71d068ca9e917cfa7fa6b",
   "SMART_PRO_S_binary_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/bin/RomCloud-smart-pro-s",
   "icon_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/icon.png",
-  "package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.6/RomCloud-brick-pro-v2.2.6.zip",
-  "package_sha256": "209ee452e4ecaceb4b99fdae95988a88c704683cfcb49f4fe678ae577a82a877",
+  "package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.7/RomCloud-brick-pro-v2.2.7.zip",
+  "package_sha256": "5d6b4dab5c4ca633ea8de64d01f7718891ae33d121b8727a76f40aacbf4f6748",
   "binary_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/bin/RomCloud",
   "os_versions": {
-    "STOCK_PS": "2.2.6",
-    "NEXTUI": "2.2.6",
-    "SPRUCE_OS": "2.2.6"
+    "STOCK_PS": "2.2.7",
+    "NEXTUI": "2.2.7",
+    "SPRUCE_OS": "2.2.7"
   },
-  "SMART_PRO_S_changelog": "Sửa lỗi video YouTube thứ hai/thứ ba không phát: thử client Android MP4 khi client mặc định báo không khả dụng; giảm thời gian chờ và giữ log chẩn đoán.",
-  "changelog": "Sửa lỗi video YouTube thứ hai/thứ ba không phát: thử client Android MP4 khi client mặc định báo không khả dụng; giảm thời gian chờ và giữ log chẩn đoán."
+  "SMART_PRO_S_changelog": "Kiểm tra luồng YouTube trước khi mở MPV; tự đổi sang Android khi URL bị 403 và retry một lần nếu MPV vẫn lỗi. Giữ log chi tiết trong GitHub Issues.",
+  "changelog": "Kiểm tra luồng YouTube trước khi mở MPV; tự đổi sang Android khi URL bị 403 và retry một lần nếu MPV vẫn lỗi. Giữ log chi tiết trong GitHub Issues."
 }
