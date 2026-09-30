@@ -420,7 +420,7 @@ bool BoxartScraper::downloadCoverFromUrl(const std::string& url, const std::stri
     std::vector<std::string> headers = {
         "User-Agent: RomCloud-TrimUI-Scraper/1.0"
     };
-    HttpResponse resp = HttpClient::instance().get(url, headers, 10000);
+    HttpResponse resp = HttpClient::instance().get(url, headers, 10, false);
 
     if (resp.statusCode == 200 && !resp.body.empty() && resp.body.size() > 512) {
         FILE* fp = fopen(targetPath.c_str(), "wb");

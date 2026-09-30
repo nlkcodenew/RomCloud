@@ -72,7 +72,7 @@ std::string HttpClient::urlEncode(const std::string& value) {
     return result;
 }
 
-HttpResponse HttpClient::get(const std::string& url, const std::vector<std::string>& headers, int timeoutSec) {
+HttpResponse HttpClient::get(const std::string& url, const std::vector<std::string>& headers, int timeoutSec, bool reportTransportErrors) {
     if (!m_initialized) init();
 
     HttpResponse response;
@@ -117,7 +117,9 @@ HttpResponse HttpClient::get(const std::string& url, const std::vector<std::stri
     } else {
         response.error = curl_easy_strerror(res);
         response.success = false;
-        Logger::error("HTTP GET failed (" + url + "): " + response.error);
+        if (reportTransportErrors) {
+            Logger::error("HTTP GET failed (" + url + "): " + response.error);
+        }
     }
 
     if (chunk) curl_slist_free_all(chunk);

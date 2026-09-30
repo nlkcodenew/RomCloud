@@ -21,7 +21,7 @@ case "$TARGET_DEVICE" in
   *) echo "Unsupported TARGET_DEVICE: $TARGET_DEVICE" >&2; exit 2 ;;
 esac
 
-TAG="${TARGET_SLUG}-v${VERSION}"
+TAG="v${VERSION}"
 ZIP_NAME="RomCloud-${TARGET_SLUG}-v${VERSION}.zip"
 DIST_DIR="$SCRIPT_DIR/dist/$TARGET_SLUG"
 STAGING_DIR="$SCRIPT_DIR/dist/staging-$TARGET_SLUG"

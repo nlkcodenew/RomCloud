@@ -9,8 +9,8 @@ và chọn tag tương ứng:
 
 | Thiết bị | Tag | File cần tải |
 | --- | --- | --- |
-| TrimUI Brick Pro | `brick-pro-vX.Y.Z` | `RomCloud-brick-pro-vX.Y.Z.zip` |
-| TrimUI Smart Pro S | `smart-pro-s-vX.Y.Z` | `RomCloud-smart-pro-s-vX.Y.Z.zip` |
+| TrimUI Brick Pro | `vX.Y.Z` | `RomCloud-brick-pro-vX.Y.Z.zip` |
+| TrimUI Smart Pro S | `vX.Y.Z` | `RomCloud-smart-pro-s-vX.Y.Z.zip` |
 
 Mỗi release còn có `manifest.json` và file `.zip.sha256` để kiểm tra phát hành.
 Người dùng bình thường **chỉ cần tải một file ZIP** trong bảng trên. Không tải

@@ -14,11 +14,11 @@ inline constexpr int APP_W = 1024;
 inline constexpr int APP_H = 768;
 
 // ---- Global palette ----
-inline constexpr SDL_Color BG_APP      = {11, 19, 30, 255};   // #0B131E
-inline constexpr SDL_Color CARD_BG     = {15, 23, 42, 200};   // panel alpha ~200
-inline constexpr SDL_Color CARD_SOLID  = {15, 23, 42, 255};   // khi cần nền đặc
-inline constexpr SDL_Color CARD_BORDER = {51, 65, 85, 255};
-inline constexpr SDL_Color FOCUS_BG    = {37, 99, 235, 255};  // #2563EB
+inline constexpr SDL_Color BG_APP      = {7, 12, 22, 255};
+inline constexpr SDL_Color CARD_BG     = {17, 25, 40, 220};
+inline constexpr SDL_Color CARD_SOLID  = {15, 23, 38, 255};
+inline constexpr SDL_Color CARD_BORDER = {48, 65, 88, 255};
+inline constexpr SDL_Color FOCUS_BG    = {20, 95, 160, 255};
 inline constexpr SDL_Color FOCUS_ALT   = {249, 115, 34, 255}; // #F97322
 inline constexpr SDL_Color FOCUS_GLOW  = {96, 165, 250, 255};
 inline constexpr SDL_Color TEXT_MAIN   = {255, 255, 255, 255};
@@ -32,7 +32,7 @@ inline constexpr SDL_Color ACCENT_GREEN = {34, 197, 94, 255};
 inline constexpr SDL_Color ACCENT_BLUE  = {59, 130, 246, 255};
 inline constexpr SDL_Color ACCENT_GOLD  = {202, 138, 4, 255};
 inline constexpr SDL_Color ACCENT_RED  = {239, 68, 68, 255};
-inline constexpr SDL_Color ACCENT_CYAN = {0, 180, 216, 255};
+inline constexpr SDL_Color ACCENT_CYAN = {34, 211, 238, 255};
 inline constexpr SDL_Color DIM_OVERLAY = {0, 0, 0, 190};
 
 inline constexpr int RADIUS_CARD = 12;
@@ -59,8 +59,8 @@ inline constexpr int HEADER_H = 64;
 inline constexpr int SUB_H    = 48;
 inline constexpr int FOOTER_Y = 715;
 inline constexpr int FOOTER_H = 53;
-inline constexpr SDL_Color FOOTER_BG   = {18, 22, 30, 255};
-inline constexpr SDL_Color FOOTER_LINE = {40, 48, 62, 255};
+inline constexpr SDL_Color FOOTER_BG   = {10, 16, 28, 248};
+inline constexpr SDL_Color FOOTER_LINE = {35, 55, 78, 255};
 inline constexpr int FOOTER_ICON = 26;
 inline constexpr int FOOTER_GAP  = 8;
 inline constexpr int FOOTER_HINT_GAP = 28;

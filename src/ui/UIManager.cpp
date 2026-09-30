@@ -925,8 +925,23 @@ void UIManager::update() {
         }
 
         case UIState::SETTINGS: {
-            constexpr int totalSettingsRows = 11;
+            constexpr int totalSettingsRows = 12;
             constexpr int visibleRows = 9;
+
+            if (m_confirmClearLogs) {
+                if (input.isButtonJustPressed(Button::A)) {
+                    std::remove((AppConfig::instance().getDataDir() + "/pending_issue_report").c_str());
+                    if (Logger::instance().clear()) {
+                        showToast("Đã xóa log cũ. Nhật ký mới bắt đầu từ đây.", {34, 197, 94, 255}, 3500);
+                    } else {
+                        showToast("Không thể xóa toàn bộ log.", {239, 68, 68, 255}, 3500);
+                    }
+                    m_confirmClearLogs = false;
+                } else if (input.isButtonJustPressed(Button::B)) {
+                    m_confirmClearLogs = false;
+                }
+                break;
+            }
 
             if (input.isButtonJustPressed(Button::UP)) {
                 if (m_selectedSettingsRow > 0) {
@@ -978,6 +993,8 @@ void UIManager::update() {
                     AppConfig::instance().setOSType(next);
                     showToast("OS: " + AppConfig::instance().getOSName(), {168, 85, 247, 255}, 2000);
                 } else if (m_selectedSettingsRow == 9) {
+                    m_confirmClearLogs = true;
+                } else if (m_selectedSettingsRow == 10) {
                     // Export backup
                     showToast(UiStrings::BACKUP_EXPORTING, {168, 85, 247, 255}, 2000);
                     auto result = BackupManager::instance().exportToSdCard();
@@ -986,7 +1003,7 @@ void UIManager::update() {
                     } else {
                         showToast(UiStrings::BACKUP_FAILED, {239, 68, 68, 255}, 4000);
                     }
-                } else if (m_selectedSettingsRow == 10) {
+                } else if (m_selectedSettingsRow == 11) {
                     // Import backup
                     showToast(UiStrings::BACKUP_IMPORTING, {0, 180, 216, 255}, 2000);
                     auto lastBackup = BackupManager::instance().getMostRecentBackup();
@@ -3237,7 +3254,20 @@ void UIManager::renderFooter() {
     SDL_Color cyan = {0, 180, 216, 255};
     int x = 20;
 
-    if (m_currentState == UIState::GAME_LIST) {
+    if (m_currentState == UIState::MENU) {
+        x = drawFooterHint("DPAD", "Di chuyển", x, barY, barH, fg, m_fontSmall, iconSize, gap) + 30;
+        x = drawFooterHint("A", "Mở", x, barY, barH, cyan, m_fontSmall, iconSize, gap) + 30;
+        x = drawFooterHint("SELECT", "Đồng bộ", x, barY, barH, fg, m_fontSmall, iconSize, gap) + 30;
+        x = drawFooterHint("START", "Cài đặt", x, barY, barH, fg, m_fontSmall, iconSize, gap) + 30;
+    } else if (m_currentState == UIState::SETTINGS) {
+        x = drawFooterHint("A", m_confirmClearLogs ? "Xóa log" : "Chọn", x, barY, barH,
+                           m_confirmClearLogs ? red : cyan, m_fontSmall, iconSize, gap) + 30;
+        x = drawFooterHint("B", m_confirmClearLogs ? "Hủy" : "Quay lại", x, barY, barH, fg, m_fontSmall, iconSize, gap) + 30;
+        if (!m_confirmClearLogs) {
+            x = drawFooterHint("L1", "Cuộn nhanh", x, barY, barH, fg, m_fontSmall, iconSize, gap) + 8;
+            x = drawFooterHint("R1", "Cuộn nhanh", x, barY, barH, fg, m_fontSmall, iconSize, gap) + 30;
+        }
+    } else if (m_currentState == UIState::GAME_LIST) {
         bool isLocal = false;
         if (m_selectedGameIndex >= 0 && m_selectedGameIndex < static_cast<int>(m_cachedGames.size())) {
             isLocal = (m_cachedGames[m_selectedGameIndex].localState == GameState::LOCAL);
@@ -3324,29 +3354,38 @@ void UIManager::renderToast() {
 }
 
 void UIManager::renderMenuState() {
-    // OTA update info
     bool hasUpdate = UpdateManager::instance().isUpdateAvailable();
-
     int itemCount = static_cast<int>(m_gridMenuItems.size());
 
-    // Single Horizontal Row (1 hàng ngang) Carousel - Centered vertically without header
-    int selW = 260;
-    int selH = 320;
-    int selX = 512 - selW / 2; // 382
-    int selY = 155;
+    drawRect(0, 0, 1024, 106, {9, 16, 29, 255}, true);
+    drawRect(0, 105, 1024, 1, {30, 48, 70, 255}, true);
+    drawText("ROM", 28, 18, UiTheme::TEXT_MAIN, m_fontLarge);
+    drawText("CLOUD", 104, 18, UiTheme::ACCENT_CYAN, m_fontLarge);
+    drawText("Thư viện giải trí và đồng bộ cho TrimUI", 30, 60, UiTheme::TEXT_SUB, m_fontSmall);
 
-    int normW = 200;
-    int normH = 260;
-    int normY = 185;
-    int gap = 24;
+#if defined(ROMCLOUD_TARGET_SMART_PRO_S)
+    const std::string deviceName = "SMART PRO S";
+#else
+    const std::string deviceName = "BRICK PRO";
+#endif
+    drawBadge(760, 20, 130, 34, deviceName, {23, 43, 65, 255}, UiTheme::TEXT_DIM);
+    drawBadge(900, 20, 96, 34, "v" + std::string(APP_VERSION), {20, 83, 105, 255}, UiTheme::ACCENT_CYAN);
+    std::string ip = PlatformInfo::instance().getIpAddress("wlan0");
+    drawText(ip.empty() ? "Wi-Fi chưa kết nối" : ip + ":8080", 996, 66,
+             ip.empty() ? UiTheme::ACCENT_GOLD : UiTheme::ACCENT_GREEN, m_fontSmall, true);
 
-    // Render items in a single horizontal row centered around m_selectedMenuIndex
+    const int selW = 246;
+    const int selH = 294;
+    const int selX = 512 - selW / 2;
+    const int selY = 142;
+    const int normW = 180;
+    const int normH = 236;
+    const int normY = 171;
+    const int gap = 18;
+
     for (int i = 0; i < itemCount; ++i) {
         int offset = i - m_selectedMenuIndex;
-        int x = 0;
-        int y = 0;
-        int w = 0;
-        int h = 0;
+        int x = 0, y = 0, w = 0, h = 0;
         bool isSel = (offset == 0);
 
         if (isSel) {
@@ -3366,67 +3405,80 @@ void UIManager::renderMenuState() {
             h = normH;
         }
 
-        // Clip items outside visible screen
         if (x + w < -50 || x > 1024 + 50) {
             continue;
         }
 
-        // Card background
-        SDL_Color bg = isSel ? SDL_Color{26, 52, 88, 255} : SDL_Color{20, 26, 36, 230};
+        SDL_Color bg = isSel ? SDL_Color{18, 48, 76, 255} : SDL_Color{14, 22, 35, 238};
+        if (isSel) drawRoundedRect(x - 7, y - 7, w + 14, h + 14, UiTheme::RADIUS_MODAL + 3, {11, 32, 52, 255}, true);
         drawRoundedRect(x, y, w, h, UiTheme::RADIUS_MODAL, bg, true);
 
         if (isSel) {
-            // Glowing cyan border on selected card
-            drawRoundedBorder(x, y, w, h, UiTheme::RADIUS_MODAL, {0, 180, 216, 255}, 3);
+            drawRoundedBorder(x, y, w, h, UiTheme::RADIUS_MODAL, UiTheme::ACCENT_CYAN, 3);
+            drawRoundedRect(x + 28, y + h - 7, w - 56, 7, 4, UiTheme::ACCENT_CYAN, true);
         } else {
-            drawRoundedBorder(x, y, w, h, UiTheme::RADIUS_MODAL, {38, 48, 64, 255}, 1);
+            drawRoundedBorder(x, y, w, h, UiTheme::RADIUS_MODAL, {38, 54, 74, 255}, 1);
         }
 
-        // Icon inside card (enlarged logo size)
-        int iconSize = isSel ? 160 : 120;
+        int iconSize = isSel ? 142 : 108;
         int iconX = x + (w - iconSize) / 2;
-        int iconY = y + (isSel ? 30 : 25);
+        int iconY = y + (isSel ? 26 : 24);
         drawGridIcon(m_gridMenuItems[i].iconFile, iconX, iconY, iconSize, iconSize);
 
-        // Card Title (Logo + Tên chức năng duy nhất)
-        int textY = y + (isSel ? 235 : 195);
+        int textY = y + (isSel ? 194 : 158);
         SDL_Color titleColor = isSel ? SDL_Color{255, 255, 255, 255} : SDL_Color{160, 175, 195, 255};
         drawText(m_gridMenuItems[i].title, x + w / 2, textY, titleColor, isSel ? m_fontMedium : m_fontSmall, true);
+        if (isSel) {
+            drawText(m_gridMenuItems[i].subtitle, x + w / 2, textY + 42, UiTheme::TEXT_SUB, m_fontSmall, true);
+        }
 
-        // OTA badge
         if (hasUpdate && m_gridMenuItems[i].id == "ota") {
-            drawRoundedRect(x + w - 54, y + 10, 44, 22, UiTheme::RADIUS_ROW, {239, 68, 68, 255}, true);
-            drawText("NEW", x + w - 32, y + 13, {255, 255, 255, 255}, m_fontSmall, true);
+            drawBadge(x + w - 67, y + 10, 56, 28, "NEW", {185, 28, 28, 255}, UiTheme::TEXT_MAIN);
         }
     }
 
-    // Left and Right navigation chevrons
     if (m_selectedMenuIndex > 0) {
-        drawText("<", 36, 335, {0, 180, 216, 200}, m_fontLarge, true);
+        drawText("‹", 30, 274, UiTheme::ACCENT_CYAN, m_fontTitle, true);
     }
     if (m_selectedMenuIndex < itemCount - 1) {
-        drawText(">", 988, 335, {0, 180, 216, 200}, m_fontLarge, true);
+        drawText("›", 994, 274, UiTheme::ACCENT_CYAN, m_fontTitle, true);
     }
 
-    // Dot pager centered at Y=560
-    int dotW = 8;
-    int selDotW = 28;
-    int dotGap = 8;
+    int dotW = 7, selDotW = 24, dotGap = 7;
     int totalDotWidth = selDotW + (itemCount - 1) * (dotW + dotGap);
     int dotX = (1024 - totalDotWidth) / 2;
-    int dotY = 560;
+    int dotY = 460;
 
     for (int i = 0; i < itemCount; ++i) {
         bool isSel = (i == m_selectedMenuIndex);
         int w = isSel ? selDotW : dotW;
-        drawRoundedRect(dotX, dotY, w, 8, 4, isSel ? SDL_Color{0, 180, 216, 255} : SDL_Color{45, 56, 75, 255}, true);
+        drawRoundedRect(dotX, dotY, w, 7, 4, isSel ? UiTheme::ACCENT_CYAN : SDL_Color{45, 56, 75, 255}, true);
         dotX += w + dotGap;
     }
 
-    // Footer hint
-    drawRect(0, 715, 1024, 53, {18, 22, 30, 255}, true);
-    drawRect(0, 715, 1024, 1, {40, 48, 62, 255}, true);
-    drawAppFooter({{UiTheme::PadBtn::DPAD, "Chuyển"}, {UiTheme::PadBtn::START, "Cài đặt"}});
+    int localCount = 0, cloudCount = 0;
+    DatabaseManager::instance().getTotalGameCounts(localCount, cloudCount);
+    auto disk = FileSystemManager::instance().getDiskSpace(AppConfig::instance().getAppRoot());
+    const int statY = 500;
+    const int statH = 150;
+    const int statGap = 14;
+    const int statW = 234;
+    struct DashboardStat { std::string label; std::string value; std::string detail; SDL_Color accent; };
+    const std::vector<DashboardStat> stats = {
+        {"THƯ VIỆN", std::to_string(localCount) + " game", std::to_string(cloudCount) + " game trên Drive", UiTheme::ACCENT_CYAN},
+        {"GOOGLE DRIVE", AuthManager::instance().isLinked() ? "Đã kết nối" : "Chưa kết nối", AuthManager::instance().isLinked() ? "Sẵn sàng đồng bộ" : "Mở Cài đặt để liên kết", AuthManager::instance().isLinked() ? UiTheme::ACCENT_GREEN : UiTheme::ACCENT_GOLD},
+        {"THẺ NHỚ", FileSystemManager::instance().formatBytes(disk.availableBytes), "Dung lượng còn trống", UiTheme::ACCENT_BLUE},
+        {"CẬP NHẬT", hasUpdate ? "Có phiên bản mới" : "Đã mới nhất", "RomCloud v" + std::string(APP_VERSION), hasUpdate ? UiTheme::ACCENT_GOLD : UiTheme::ACCENT_GREEN}
+    };
+    for (size_t i = 0; i < stats.size(); ++i) {
+        int x = 23 + static_cast<int>(i) * (statW + statGap);
+        drawRoundedRect(x, statY, statW, statH, UiTheme::RADIUS_CARD, {13, 21, 34, 255}, true);
+        drawRoundedBorder(x, statY, statW, statH, UiTheme::RADIUS_CARD, {36, 51, 70, 255}, 1);
+        drawRoundedRect(x, statY, 5, statH, 3, stats[i].accent, true);
+        drawText(stats[i].label, x + 20, statY + 18, UiTheme::TEXT_SUB, m_fontSmall);
+        drawText(stats[i].value, x + 20, statY + 56, stats[i].accent, m_fontMedium);
+        drawText(stats[i].detail, x + 20, statY + 105, UiTheme::TEXT_FAINT, m_fontSmall);
+    }
 }
 
 void UIManager::renderSystemSelectState() {
@@ -3907,10 +3959,11 @@ void UIManager::renderDisclaimerState() {
 }
 
 void UIManager::renderSettingsState() {
-    // ─── Borderless Full-Width Sub-Header ───
-    drawRect(0, 64, 1024, 48, UiTheme::CARD_SOLID, true);
-    drawRect(0, 111, 1024, 1, {38, 48, 64, 255}, true);
-    drawText(UiStrings::HEADER_SETTINGS, 36, 78, {0, 180, 216, 255}, m_fontLarge);
+    drawRect(0, 0, 1024, 112, {9, 16, 29, 255}, true);
+    drawRect(0, 111, 1024, 1, {30, 48, 70, 255}, true);
+    drawText(UiStrings::HEADER_SETTINGS, 28, 18, UiTheme::TEXT_MAIN, m_fontLarge);
+    drawText("Tài khoản, hệ thống, dữ liệu và chẩn đoán", 30, 62, UiTheme::TEXT_SUB, m_fontSmall);
+    drawBadge(846, 24, 150, 36, "v" + std::string(APP_VERSION), {20, 83, 105, 255}, UiTheme::ACCENT_CYAN);
 
     std::string email = AuthManager::instance().getUserEmail();
     std::string folderId = DatabaseManager::instance().getSetting("drive_folder_id", UiStrings::SETTING_NOT_CONFIGURED);
@@ -3928,7 +3981,7 @@ void UIManager::renderSettingsState() {
     };
 
     std::vector<SettingItem> items;
-    items.reserve(10);
+    items.reserve(12);
 
     // 0: Google Drive Account
     items.push_back({
@@ -3965,14 +4018,17 @@ void UIManager::renderSettingsState() {
     // 8: Bộ nhớ đệm ảnh bìa
     items.push_back({UiStrings::SETTING_COVER_CACHE, UiStrings::SETTING_COVER_CACHE_VAL, SDL_Color{34, 197, 94, 255}, "", SDL_Color{0, 0, 0, 0}, SDL_Color{0, 0, 0, 0}});
 
-    // 9: Xuất sao lưu cài đặt
+    // 9: Xóa nhật ký cũ
+    items.push_back({"Nhật ký chẩn đoán", "Xóa debug.log và debug.log.old", SDL_Color{248, 113, 113, 255}, "[A] Xóa log", SDL_Color{127, 29, 29, 255}, SDL_Color{255, 255, 255, 255}});
+
+    // 10: Xuất sao lưu cài đặt
     items.push_back({UiStrings::BACKUP_EXPORT_BTN, UiStrings::BACKUP_EXPORT_DESC, SDL_Color{168, 85, 247, 255}, "[A] Xuất sao lưu", SDL_Color{88, 28, 135, 255}, SDL_Color{255, 255, 255, 255}});
 
-    // 10: Phục hồi cài đặt
+    // 11: Phục hồi cài đặt
     items.push_back({UiStrings::BACKUP_IMPORT_BTN, UiStrings::BACKUP_IMPORT_DESC, SDL_Color{0, 180, 216, 255}, "[A] Phục hồi", SDL_Color{21, 94, 117, 255}, SDL_Color{255, 255, 255, 255}});
 
-    int cardX = 24;
-    int cardW = 976;
+    int cardX = 28;
+    int cardW = 968;
     int rowH = 50;
     int spacing = 6;
     int stepY = rowH + spacing;
@@ -3981,7 +4037,7 @@ void UIManager::renderSettingsState() {
     int maxScroll = static_cast<int>(items.size()) - visibleRows;
     if (maxScroll < 0) maxScroll = 0;
 
-    int startY = 122 - (m_settingsScrollOffset * stepY);
+    int startY = 124 - (m_settingsScrollOffset * stepY);
 
     for (size_t i = 0; i < items.size(); ++i) {
         int y = startY + static_cast<int>(i) * stepY;
@@ -3991,7 +4047,7 @@ void UIManager::renderSettingsState() {
 
         SDL_Color bg;
         if (selected) {
-            bg = SDL_Color{30, 58, 95, 255};
+            bg = SDL_Color{18, 50, 80, 255};
         } else if (i % 2 == 1) {
             bg = SDL_Color{22, 28, 38, 255};
         } else {
@@ -4001,9 +4057,9 @@ void UIManager::renderSettingsState() {
         drawRoundedRect(cardX, y, cardW, rowH, UiTheme::RADIUS_CARD, bg, true);
 
         if (selected) {
-            drawRoundedBorder(cardX, y, cardW, rowH, UiTheme::RADIUS_CARD, {0, 180, 216, 255}, 2);
+            drawRoundedBorder(cardX, y, cardW, rowH, UiTheme::RADIUS_CARD, UiTheme::ACCENT_CYAN, 2);
             // Left neon accent indicator
-            drawRoundedRect(cardX + 4, y + 10, 5, rowH - 20, 2, {0, 180, 216, 255}, true);
+            drawRoundedRect(cardX + 4, y + 10, 5, rowH - 20, 2, UiTheme::ACCENT_CYAN, true);
         }
 
         SDL_Color lblColor = selected ? SDL_Color{255, 255, 255, 255} : SDL_Color{170, 185, 200, 255};
@@ -4024,17 +4080,30 @@ void UIManager::renderSettingsState() {
 
     // Scrollbar indicator
     if (maxScroll > 0) {
-        int scrollBarX = 1006;
-        int scrollBarY = 122;
+        int scrollBarX = 1008;
+        int scrollBarY = 124;
         int scrollBarH = visibleRows * stepY - spacing;
         int thumbH = scrollBarH * visibleRows / static_cast<int>(items.size());
         int thumbY = scrollBarY + (m_settingsScrollOffset * (scrollBarH - thumbH) / maxScroll);
 
         drawRoundedRect(scrollBarX, scrollBarY, 6, scrollBarH, 3, {35, 42, 54, 255}, true);
-        drawRoundedRect(scrollBarX, thumbY, 6, thumbH, 3, {0, 180, 216, 255}, true);
+        drawRoundedRect(scrollBarX, thumbY, 6, thumbH, 3, UiTheme::ACCENT_CYAN, true);
     }
 
-    drawAppFooter({{UiTheme::PadBtn::A, "Chọn"}});
+    if (m_confirmClearLogs) {
+        beginModalDim();
+        const int modalX = 222;
+        const int modalY = 246;
+        const int modalW = 580;
+        const int modalH = 244;
+        drawRoundedRect(modalX, modalY, modalW, modalH, UiTheme::RADIUS_MODAL, {17, 24, 39, 255}, true);
+        drawRoundedBorder(modalX, modalY, modalW, modalH, UiTheme::RADIUS_MODAL, UiTheme::ACCENT_RED, 2);
+        drawText("XÓA NHẬT KÝ CŨ?", 512, modalY + 28, UiTheme::TEXT_MAIN, m_fontLarge, true);
+        drawText("debug.log và bản xoay vòng sẽ bị xóa vĩnh viễn.", 512, modalY + 90, UiTheme::TEXT_DIM, m_fontSmall, true);
+        drawText("Ứng dụng sẽ tiếp tục ghi log mới ngay sau thao tác này.", 512, modalY + 124, UiTheme::TEXT_SUB, m_fontSmall, true);
+        drawBadge(modalX + 54, modalY + 174, 210, 44, "[A] Xóa log", {127, 29, 29, 255}, UiTheme::TEXT_MAIN);
+        drawBadge(modalX + modalW - 264, modalY + 174, 210, 44, "[B] Hủy", {51, 65, 85, 255}, UiTheme::TEXT_MAIN);
+    }
 }
 
 void UIManager::renderCloudLoginState() {

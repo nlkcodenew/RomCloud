@@ -10,12 +10,12 @@ Tài liệu này mô tả các quy tắc bảo trì, build và phát hành RomCl
 
 ## Thiết Bị Hỗ Trợ
 
-| Thiết bị | Build | Tag |
+| Thiết bị | Build | Gói trong release chung |
 | --- | --- | --- |
-| TrimUI Brick Pro | `./release-brick-pro.sh` | `brick-pro-vX.Y.Z` |
-| TrimUI Smart Pro S | `./release-smart-pro-s.sh` | `smart-pro-s-vX.Y.Z` |
+| TrimUI Brick Pro | `./release-brick-pro.sh` | `RomCloud-brick-pro-vX.Y.Z.zip` |
+| TrimUI Smart Pro S | `./release-smart-pro-s.sh` | `RomCloud-smart-pro-s-vX.Y.Z.zip` |
 
-Không dùng một binary hoặc một tag chung cho hai thiết bị.
+Hai thiết bị vẫn dùng binary riêng nhưng cùng xuất hiện trong tag `vX.Y.Z`.
 
 ## Cấu Trúc Chính
 
@@ -27,7 +27,8 @@ deploy/issue-relay/     Cloudflare diagnostics relay
 tests/                  focused tests
 tools/                  release helpers
 version.json            OTA channel manifest
-package.sh              three-asset package builder
+package.sh              device package builder
+release.sh              shared release builder
 ```
 
 ## Quy Trình Sửa Lỗi
@@ -54,10 +55,12 @@ node tests/test_issue_relay_worker.mjs
 g++ -std=c++17 -Isrc tests/test_device_identity.cpp \
   src/platform/DeviceIdentity.cpp -o /tmp/test_device_identity
 /tmp/test_device_identity
+g++ -std=c++17 -Isrc tests/test_logger_clear.cpp \
+  src/logging/Logger.cpp -pthread -o /tmp/test_logger_clear
+/tmp/test_logger_clear
 
-# Releases
-./release-brick-pro.sh
-./release-smart-pro-s.sh
+# Shared release
+./release.sh
 ```
 
 Brick Pro xuất binary `bin/RomCloud`. Smart Pro S xuất
@@ -71,12 +74,12 @@ Quy trình chuẩn nằm tại [docs/RELEASES.md](docs/RELEASES.md). Tóm tắt:
 2. Cập nhật `version.json` và hai file release notes.
 3. Build cả hai thiết bị.
 4. Xác minh ZIP, manifest, SHA-256, quyền thực thi và không có secret.
-5. Commit/push `main`.
-6. Tạo và push hai annotated tag theo thiết bị.
-7. Mỗi GitHub Release chỉ upload:
-   - `manifest.json`
-   - một ZIP cài đặt theo phiên bản
-   - file `<ZIP>.sha256`
+5. Chạy `./release.sh` để gom asset và cập nhật checksum OTA.
+6. Commit/push `main`, sau đó tạo một annotated tag `vX.Y.Z`.
+7. GitHub Release chung upload đúng 5 asset trong `dist/release/`:
+   - `ota-manifest.json`
+   - hai ZIP cài đặt theo thiết bị
+   - hai file checksum tương ứng
 
 Không upload binary rời, Lite Installer, MPV bundle hoặc checksum tổng hợp.
 
@@ -92,7 +95,7 @@ Không upload binary rời, Lite Installer, MPV bundle hoặc checksum tổng h�
 - [ ] Test liên quan đạt
 - [ ] Brick Pro build thành công
 - [ ] Smart Pro S build thành công
-- [ ] Mỗi thư mục release có đúng 3 asset
+- [ ] Release chung có đúng 5 asset
 - [ ] Manifest, `.sha256` và ZIP khớp nhau
 - [ ] Binary trong ZIP là AArch64 đúng thiết bị
 - [ ] `launch.sh` và binary có quyền `0755`

@@ -1,25 +1,25 @@
 {
-  "version": "2.2.2",
+  "version": "2.2.3",
   "release_date": "2026-09-30",
   "target_os": "ALL",
   "device_channels": {
-    "brick-pro": "brick-pro-v2.2.2",
-    "smart-pro-s": "smart-pro-s-v2.2.2"
+    "brick-pro": "v2.2.3",
+    "smart-pro-s": "v2.2.3"
   },
-  "SMART_PRO_S_version": "2.2.2",
+  "SMART_PRO_S_version": "2.2.3",
   "SMART_PRO_S_release_date": "2026-09-30",
-  "SMART_PRO_S_package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/smart-pro-s-v2.2.2/RomCloud-smart-pro-s-v2.2.2.zip",
-  "SMART_PRO_S_package_sha256": "121ea63b74d4ed14d8dea1fc33a9ae31014916438f8843faa69647e051a02e1c",
+  "SMART_PRO_S_package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.3/RomCloud-smart-pro-s-v2.2.3.zip",
+  "SMART_PRO_S_package_sha256": "95809e47b1fd81bc27849fcf5c4888d6258520bb082ae0ed24ccdc3f9225acce",
   "SMART_PRO_S_binary_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/bin/RomCloud-smart-pro-s",
   "icon_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/icon.png",
-  "package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/brick-pro-v2.2.2/RomCloud-brick-pro-v2.2.2.zip",
-  "package_sha256": "6436e883cce72fbc7efadfc98c8c0600bcff72289a2957a2d7134d096fb3e3b2",
+  "package_url": "https://github.com/nlkcodenew/RomCloud/releases/download/v2.2.3/RomCloud-brick-pro-v2.2.3.zip",
+  "package_sha256": "03dc30505dd205de2ffcb1b4c37848d5939a2a0026caf0ccce5db1e327aab938",
   "binary_url": "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/bin/RomCloud",
   "os_versions": {
-    "STOCK_PS": "2.2.2",
-    "NEXTUI": "2.2.2",
-    "SPRUCE_OS": "2.2.2"
+    "STOCK_PS": "2.2.3",
+    "NEXTUI": "2.2.3",
+    "SPRUCE_OS": "2.2.3"
   },
-  "SMART_PRO_S_changelog": "Sửa YouTube trên Linux, phát hiện tải ROM thiếu dữ liệu, ẩn game Drive đã có trong máy và gửi debug.log đầy đủ lên GitHub Issues.",
-  "changelog": "Sửa YouTube trên Linux, phát hiện tải ROM thiếu dữ liệu, ẩn game Drive đã có trong máy và gửi debug.log đầy đủ lên GitHub Issues."
+  "SMART_PRO_S_changelog": "Giao diện dashboard mới chuyên nghiệp hơn, thêm nút xóa log cũ và giảm log nhiễu từ ảnh bìa không tồn tại.",
+  "changelog": "Giao diện dashboard mới chuyên nghiệp hơn, thêm nút xóa log cũ và giảm log nhiễu từ ảnh bìa không tồn tại."
 }

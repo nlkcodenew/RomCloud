@@ -238,6 +238,7 @@ private:
 
   // Settings State
   int m_selectedSettingsRow = 0;
+  bool m_confirmClearLogs = false;
   int m_settingsScrollOffset = 0;
 
   // Diagnostics scroll state

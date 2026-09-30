@@ -4,6 +4,8 @@
 #include <iomanip>
 #include <sstream>
 #include <sys/stat.h>
+#include <cerrno>
+#include <cstdio>
 
 namespace RomCloud {
 
@@ -80,6 +82,27 @@ void Logger::setErrorCallback(std::function<void(const std::string&)> callback) 
 void Logger::flush() {
     std::lock_guard<std::mutex> lock(m_mutex);
     if (m_initialized && m_logFile.is_open()) m_logFile.flush();
+}
+
+bool Logger::clear() {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    if (m_filePath.empty()) return false;
+
+    if (m_logFile.is_open()) m_logFile.close();
+    const std::string oldPath = m_filePath + ".old";
+    errno = 0;
+    const bool currentRemoved = std::remove(m_filePath.c_str()) == 0 || errno == ENOENT;
+    errno = 0;
+    const bool oldRemoved = std::remove(oldPath.c_str()) == 0 || errno == ENOENT;
+
+    m_logFile.clear();
+    m_logFile.open(m_filePath, std::ios::out | std::ios::trunc);
+    m_initialized = m_logFile.is_open();
+    if (m_initialized) {
+        m_logFile << "[LOG RESET] Previous RomCloud logs were cleared by the user." << std::endl;
+        m_logFile.flush();
+    }
+    return currentRemoved && oldRemoved && m_initialized;
 }
 
 void Logger::debug(const std::string& msg) { instance().log(LogLevel::DEBUG, msg); }

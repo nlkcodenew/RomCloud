@@ -1,25 +1,27 @@
 # RomCloud Release Process
 
-RomCloud publishes separate release channels for each supported device. Both
-channels use the same application version but must have separate tags and ZIPs.
+RomCloud publishes one shared GitHub Release for every application version.
+Each device keeps its own binary and installation ZIP inside that release.
 
 ## Device Channels
 
-| Device | Tag format | Installation ZIP |
+| Device | Shared tag | Installation ZIP |
 | --- | --- | --- |
-| TrimUI Brick Pro | `brick-pro-vX.Y.Z` | `RomCloud-brick-pro-vX.Y.Z.zip` |
-| TrimUI Smart Pro S | `smart-pro-s-vX.Y.Z` | `RomCloud-smart-pro-s-vX.Y.Z.zip` |
+| TrimUI Brick Pro | `vX.Y.Z` | `RomCloud-brick-pro-vX.Y.Z.zip` |
+| TrimUI Smart Pro S | `vX.Y.Z` | `RomCloud-smart-pro-s-vX.Y.Z.zip` |
 
-Do not use a shared generic tag because the two devices use different build
-toolchains and binaries.
+The shared tag never implies a shared binary. OTA selects the correct ZIP from
+`version.json` using the device channel compiled into the app.
 
 ## Release Assets
 
-Each GitHub Release must contain exactly three uploaded assets:
+Each GitHub Release must contain exactly five uploaded assets:
 
-1. `manifest.json`
-2. One device-specific, versioned installation ZIP
-3. The matching `<installation ZIP>.sha256`
+1. `ota-manifest.json`
+2. `RomCloud-brick-pro-vX.Y.Z.zip`
+3. `RomCloud-brick-pro-vX.Y.Z.zip.sha256`
+4. `RomCloud-smart-pro-s-vX.Y.Z.zip`
+5. `RomCloud-smart-pro-s-vX.Y.Z.zip.sha256`
 
 GitHub also displays its automatically generated source archives. End users
 only need the versioned installation ZIP.
@@ -31,8 +33,7 @@ publish separate binaries, Lite installers, or media bundles.
 ## Build Commands
 
 ```sh
-./release-brick-pro.sh
-./release-smart-pro-s.sh
+./release.sh
 ```
 
 Artifacts are written to:
@@ -57,8 +58,8 @@ Before creating tags:
    `.zip.sha256` file.
 5. Confirm each ZIP contains the correct AArch64 binary and executable modes.
 6. Scan source and ZIP contents for credentials.
-7. Commit and push `main`, then create and push both annotated tags.
-8. Create one GitHub Release per tag and upload exactly the three assets.
+7. Run `./release.sh`, commit and push `main`, then create and push tag `vX.Y.Z`.
+8. Create one GitHub Release and upload the five files in `dist/release/`.
 
 ## OTA Rules
 
@@ -71,5 +72,4 @@ Before creating tags:
 
 ## Current Release
 
-- Brick Pro: `brick-pro-v2.2.2`
-- Smart Pro S: `smart-pro-s-v2.2.2`
+- Both devices: `v2.2.3`

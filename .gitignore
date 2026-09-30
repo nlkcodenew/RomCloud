@@ -3,6 +3,8 @@
 *.log
 *.new
 *.old
+__pycache__/
+*.pyc
 library.db*
 build/
 scratch/

@@ -10,14 +10,13 @@ namespace RomCloud {
 constexpr const char* GITHUB_REPO = "nlkcodenew/RomCloud";
 constexpr const char* VERSION_MANIFEST_URL = "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/version.json";
 #if defined(ROMCLOUD_TARGET_SMART_PRO_S)
-constexpr const char* APP_VERSION = "2.2.2";
-constexpr const char* RELEASE_TAG_PREFIX = "smart-pro-s-v";
+constexpr const char* APP_VERSION = "2.2.3";
 constexpr const char* RELEASE_DEVICE_SLUG = "smart-pro-s";
 #else
-constexpr const char* APP_VERSION = "2.2.2";
-constexpr const char* RELEASE_TAG_PREFIX = "brick-pro-v";
+constexpr const char* APP_VERSION = "2.2.3";
 constexpr const char* RELEASE_DEVICE_SLUG = "brick-pro";
 #endif
+constexpr const char* RELEASE_TAG_PREFIX = "v";
 
 enum class UpdateState {
     IDLE,

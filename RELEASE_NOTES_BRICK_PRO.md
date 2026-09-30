@@ -1,6 +1,6 @@
-# RomCloud 2.2.2 — TrimUI Brick Pro
+# RomCloud 2.2.3 — TrimUI Brick Pro
 
-- Sửa script YouTube bị CRLF trên Linux, cải thiện fallback `yt-dlp` và hỗ trợ URL stream dài.
-- Từ chối ROM tải thiếu byte hoặc response HTML của Google Drive trước khi cài vào thư viện.
-- Ẩn game trên Drive khi máy đã có cùng game, kể cả khác tag vùng/ngôn ngữ hoặc định dạng playlist.
-- Ghi log INFO/DEBUG chi tiết và tự gửi toàn bộ `debug.log` đã lọc lên GitHub Issues theo nhiều comment.
+- Làm mới giao diện trang chủ và Cài đặt theo phong cách dashboard rõ ràng, hiện đại hơn.
+- Thêm nút xóa log cũ có bước xác nhận, đồng thời bắt đầu ngay một nhật ký mới.
+- Loại bỏ log nhiễu do dò ảnh bìa không tồn tại để GitHub Issues chỉ nhận lỗi cần xử lý.
+- Gộp gói Brick Pro và Smart Pro S vào cùng một trang phát hành để dễ tải và cập nhật.

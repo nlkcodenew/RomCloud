@@ -20,6 +20,7 @@ public:
     void log(LogLevel level, const std::string& message);
     void header(const std::string& message);
     void flush();
+    bool clear();
 
     static void debug(const std::string& msg);
     static void info(const std::string& msg);
