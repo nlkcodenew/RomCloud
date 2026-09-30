@@ -1,11 +1,11 @@
-# HƯỚNG DẪN SỬ DỤNG ROMCLOUD — TRIMUI BRICK PRO
+# HƯỚNG DẪN SỬ DỤNG ROMCLOUD — TRIMUI BRICK PRO / SMART PRO S
 (RomCloud User Manual)
 
 ---
 
 ## 1. TỔNG QUAN HỆ THỐNG
 
-RomCloud biến Google Drive của bạn thành **Kho lưu trữ ROM đám mây khổng lồ** cho máy chơi game cầm tay TrimUI Brick Pro.
+RomCloud biến Google Drive của bạn thành **kho lưu trữ ROM đám mây** cho TrimUI Brick Pro và TrimUI Smart Pro S.
 * Bạn có thể lưu hàng trăm Gigabyte ROMs trên Google Drive.
 * Thẻ nhớ TrimUI chỉ cần lưu metadata và ảnh bìa để bạn duyệt mượt mà ở tốc độ 60 FPS.
 * Khi muốn chơi trò nào, bạn chỉ cần bấm nút `[A]` để tải riêng trò chơi đó về máy và chơi ngay. Khi chơi xong hoặc thẻ nhớ đầy, bạn có thể xóa file ROM trên thẻ nhớ bất cứ lúc nào với nút `[SELECT]`, thông tin trò chơi trên đám mây vẫn được lưu trữ nguyên vẹn!
@@ -42,7 +42,7 @@ Google Drive: My Drive/
 
 ## 3. KẾT NỐI GOOGLE DRIVE LẦN ĐẦU TIÊN (OAUTH 2.0 DEVICE FLOW)
 
-1. Đảm bảo TrimUI Brick Pro đã kết nối Wi-Fi.
+1. Đảm bảo thiết bị TrimUI đã kết nối Wi-Fi.
 2. Mở ứng dụng **RomCloud** từ màn hình Apps của TrimUI.
 3. Màn hình liên kết tài khoản sẽ hiển thị một mã QR và mã kết nối 8 ký tự (User Code).
 4. **Cách liên kết:**

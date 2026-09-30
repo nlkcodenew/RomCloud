@@ -1,16 +1,16 @@
 # RomCloud — Google OAuth 2.0 Device Flow Specification (Phase 4)
 
-This document details the RFC 8628 OAuth 2.0 Device Authorization Grant implementation in **RomCloud** for the TrimUI Brick Pro.
+This document details the RFC 8628 OAuth 2.0 Device Authorization Grant implementation in **RomCloud** for TrimUI Brick Pro and TrimUI Smart Pro S.
 
 ---
 
 ## 1. Authentication Architecture (RFC 8628)
 
-Because the TrimUI Brick Pro is a gaming handheld without a web browser or virtual keyboard, RomCloud implements the **OAuth 2.0 Device Authorization Flow**:
+Because these TrimUI handhelds do not provide a practical browser or keyboard flow, RomCloud implements the **OAuth 2.0 Device Authorization Flow**:
 
 ```
  ┌──────────────────────┐                           ┌──────────────────────┐
- │   TrimUI Brick Pro   │                           │ Google OAuth Server  │
+ │   TrimUI Handheld    │                           │ Google OAuth Server  │
  └──────────┬───────────┘                           └──────────┬───────────┘
             │                                                  │
             │  1. POST /device/code (client_id, scope)         │

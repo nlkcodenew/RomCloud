@@ -1,6 +1,6 @@
 # RomCloud — On-Demand Download & Integrity Engine Specification (Phase 6)
 
-This document details the on-demand ROM download engine, streaming transfer mechanics, and cryptographic integrity verification in **Phase 6** of RomCloud on the TrimUI Brick Pro.
+This document details the shared on-demand ROM download engine, streaming transfer mechanics, and cryptographic integrity verification used on TrimUI Brick Pro and TrimUI Smart Pro S.
 
 ---
 

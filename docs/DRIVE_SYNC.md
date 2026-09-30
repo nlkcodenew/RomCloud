@@ -1,6 +1,6 @@
 # RomCloud — Google Drive Master Library Sync Specification (Phase 5)
 
-This document details the Google Drive Master ROM Library synchronization engine implemented in **Phase 5** of RomCloud on the TrimUI Brick Pro.
+This document details the shared Google Drive Master ROM Library synchronization engine used by RomCloud on TrimUI Brick Pro and TrimUI Smart Pro S.
 
 ---
 

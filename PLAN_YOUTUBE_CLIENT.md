@@ -1,8 +1,8 @@
-# Plan: YouTube Client for TrimUI Brick Pro (Integrated into RomCloud)
+# Plan: YouTube Client for TrimUI Brick Pro / Smart Pro S
 
 ## Context
 
-**Tại sao:** Người dùng muốn xem YouTube trên TrimUI Brick Pro thay vì phải dùng điện thoại/không cần rời thiết bị.
+**Tại sao:** Người dùng muốn xem YouTube trực tiếp trên thiết bị TrimUI thay vì phải dùng điện thoại hoặc rời ứng dụng.
 
 **Thay đổi gì:** Thêm tính năng YouTube Client vào RomCloud — một menu item mới trong carousel, màn hình search với on-screen keyboard, kết quả search gọi `mpv` (đã có sẵn) qua `yt-dlp`.
 
@@ -32,17 +32,14 @@ External components (bundled):
 **File:** `dist/staging/Apps/RomCloud/bin/python3` — static Python 3 ARM64 binary
 **File:** `dist/staging/Apps/RomCloud/bin/yt-dlp` — static yt-dlp ARM64 binary
 
-**mpv:** Đã có sẵn trong các bản RomCloud trước (IPTV feature).
-- Full package: `mpv` + libs đã nằm trong zip → OK
-- Lite installer: `mpv` được fetch qua `mpv_bundle.zip` OTA → cần kiểm tra `mpv_bundle.zip` vẫn được tạo đúng trong `package.sh`
+**mpv:** Được đóng cùng thư viện vào ZIP cài đặt đầy đủ của từng thiết bị.
 
 **Python3 + yt-dlp:** Tải pre-built static binaries:
 - Python: build static ARM64 hoặc tìm release phù hợp TrimUI
 - yt-dlp: `https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp` (Linux ARM64)
 
-**OTA cho Python + yt-dlp:** Thêm vào `mpv_bundle.zip` (hoặc tạo `tools_bundle.zip` riêng) để:
-- Fresh install (user chưa từng cài RomCloud): tự động nhận Python + yt-dlp qua OTA sau khi cài Lite
-- Existing install: OTA bundle update cũng cập nhật Python + yt-dlp
+**OTA cho Python + yt-dlp:** Đóng các binary vào ZIP cài đặt đầy đủ. OTA tải và
+xác minh chính ZIP này, vì vậy cài mới và nâng cấp nhận cùng một bộ dependency.
 
 **Fallback:** Nếu device đã có `python3` hoặc `yt-dlp` ở system path, dùng system binary trước.
 
@@ -240,7 +237,7 @@ When `A` pressed on YouTube item → transition to `YOUTUBE_SEARCH`.
 | `src/ui/UIManager.cpp` | Add YouTube carousel item using `assets/apps_icons/YOUTUBE.png`; implement `renderYouTubeSearchState()`, `renderYouTubeResultsState()`; implement `handleYouTubeSearchInput()`, `handleYouTubeResultsInput()` |
 | `src/iptv/IPTVManager.cpp` | Add `playYouTubeUrl()` method (fork+exec mpv with YouTube URL) |
 | `src/iptv/IPTVManager.h` | Add `playYouTubeUrl(const std::string& url)` declaration |
-| `package.sh` | Bundle `bin/python3`, `bin/yt-dlp` into release zips |
+| `package.sh` | Bundle `bin/python3`, `bin/yt-dlp` into each device release ZIP |
 
 ### Bundled binaries (add to repo)
 | File | Source |
@@ -257,7 +254,7 @@ When `A` pressed on YouTube item → transition to `YOUTUBE_SEARCH`.
 2. Download static `python3` ARM64 binary → save to `bin/python3`
 3. Test: `file bin/python3`, `file bin/yt-dlp` confirm ARM64
 4. Test: `./bin/yt-dlp --version` confirm executable
-5. Verify `mpv` still in `package.sh` bundles (already included for IPTV, no change needed)
+5. Verify `mpv` remains in both complete device ZIPs
 
 ### Phase 2: Python search script
 5. Write `scripts/youtube_search.py`
@@ -277,8 +274,8 @@ When `A` pressed on YouTube item → transition to `YOUTUBE_SEARCH`.
 15. Create `config/youtube_mpv.conf`
 
 ### Phase 5: Packaging
-16. Update `package.sh` to bundle `bin/python3`, `bin/yt-dlp` (mpv already in bundle, no change needed)
-17. Build: `./build.sh && ./package.sh`
+16. Update `package.sh` to bundle `bin/python3` and `bin/yt-dlp`
+17. Build both channels: `./release-brick-pro.sh` and `./release-smart-pro-s.sh`
 18. Deploy to device via SSH
 19. E2E test: search → select → watch → back
 

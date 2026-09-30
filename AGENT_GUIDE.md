@@ -1,236 +1,101 @@
-# RomCloud - AI Agent Development Guide
+# RomCloud Agent Guide
 
-## 🎯 Mục tiêu
-Tài liệu này hướng dẫn các AI agent tự động:
-1. Đọc GitHub Issues hàng ngày
-2. Phân tích và chẩn đoán lỗi
-3. Tự động sửa lỗi
-4. Đẩy phiên bản mới lên GitHub
+Tài liệu này mô tả các quy tắc bảo trì, build và phát hành RomCloud.
 
----
+## Repository
 
-## 📋 Cấu trúc Repository
+- Source: https://github.com/nlkcodenew/RomCloud
+- Releases: https://github.com/nlkcodenew/RomCloud/releases
+- Diagnostics: `nlkcodenew/RomCloud-diagnostics` (private)
 
-```
-RomCloud/
-├── src/                    # Source code C++
-│   ├── app/               # Application entry
-│   ├── ui/                # UI rendering
-│   ├── network/            # HTTP, WebServer
-│   ├── database/           # SQLite operations
-│   ├── sync/              # Drive sync
-│   ├── download/           # ROM download
-│   ├── ota/               # OTA updates
-│   ├── auth/              # Google auth
-│   ├── logging/           # Logger, IssueLogger
-│   ├── config/            # AppConfig
-│   ├── platform/           # Platform detection
-│   ├── filesystem/         # File operations
-│   ├── input/              # Gamepad input
-│   ├── backup/            # Backup/Restore
-│   └── rom/               # ROM detection/organize
-├── assets/                 # Fonts, icons
-├── config/                # Default config
-├── build.sh               # Build script (zig c++)
-├── launch.sh              # Launch script
-├── version.json           # Version manifest
-└── package.sh             # Package for release
+## Thiết Bị Hỗ Trợ
+
+| Thiết bị | Build | Tag |
+| --- | --- | --- |
+| TrimUI Brick Pro | `./release-brick-pro.sh` | `brick-pro-vX.Y.Z` |
+| TrimUI Smart Pro S | `./release-smart-pro-s.sh` | `smart-pro-s-vX.Y.Z` |
+
+Không dùng một binary hoặc một tag chung cho hai thiết bị.
+
+## Cấu Trúc Chính
+
+```text
+src/                    C++ source
+assets/                 fonts and images
+config/                 packaged defaults
+deploy/issue-relay/     Cloudflare diagnostics relay
+tests/                  focused tests
+tools/                  release helpers
+version.json            OTA channel manifest
+package.sh              three-asset package builder
 ```
 
----
+## Quy Trình Sửa Lỗi
 
-## 🔄 Quy trình tự động của Agent
+1. Đọc issue và log đã được relay lọc dữ liệu nhạy cảm.
+2. Xác định thiết bị, phiên bản, mã `HW-xxxxxxxxxxxx` và lỗi liên quan.
+3. Sửa nguyên nhân gốc, giữ thay đổi tối thiểu.
+4. Chạy test liên quan và build cả hai thiết bị nếu thay đổi dùng chung.
+5. Không commit `dist/`, `.wrangler/`, `wrangler.toml`, token hay toolchain.
+6. Commit theo dạng `fix: ...`, `feat: ...`, `docs: ...` hoặc `release: ...`.
 
-### Bước 1: Đọc Issues mới
-```bash
-# Liệt kê issues chưa đóng
-gh issue list --repo bun2it/RomCloud --state open --limit 20
+## Diagnostics
 
-# Xem chi tiết issue
-gh issue view <issue_number> --repo bun2it/RomCloud
+- Ứng dụng gửi log đã lọc tới endpoint trong `config/reporting.json`.
+- GitHub token chỉ tồn tại dưới dạng Cloudflare Worker secret.
+- Không thêm token vào source, database, file cấu hình, manifest hoặc ZIP.
+- Trước release, quét source và toàn bộ nội dung ZIP để tìm mẫu token.
+
+## Build Và Test
+
+```sh
+# Focused tests
+node tests/test_issue_relay_worker.mjs
+g++ -std=c++17 -Isrc tests/test_device_identity.cpp \
+  src/platform/DeviceIdentity.cpp -o /tmp/test_device_identity
+/tmp/test_device_identity
+
+# Releases
+./release-brick-pro.sh
+./release-smart-pro-s.sh
 ```
 
-### Bước 2: Phân tích lỗi
-- Đọc `system_info` và `error_message` từ issue body
-- Kiểm tra code liên quan trong `src/`
-- Chạy build để xác nhận lỗi
+Brick Pro xuất binary `bin/RomCloud`. Smart Pro S xuất
+`bin/RomCloud-smart-pro-s` bằng TG5050 SDK.
 
-### Bước 3: Sửa lỗi
-1. Edit file(s) liên quan
-2. Build: `./build.sh`
-3. Test (nếu có thể)
-4. Commit với format: `fix: <mô tả ngắn> #<issue_number>`
+## Quy Trình Phát Hành
 
-### Bước 4: Đẩy phiên bản mới
-```bash
-# 1. Tăng version trong src/ota/UpdateManager.h
-#    constexpr const char* APP_VERSION = "X.Y.Z";
+Quy trình chuẩn nằm tại [docs/RELEASES.md](docs/RELEASES.md). Tóm tắt:
 
-# 2. Cập nhật version.json
-{
-  "version": "X.Y.Z",
-  "release_date": "YYYY-MM-DD",
-  "binary_url": "https://github.com/bun2it/RomCloud/releases/download/vX.Y.Z/RomCloud",
-  "changelog": "Mô tả thay đổi"
-}
+1. Tăng cùng một version cho cả hai nhánh `APP_VERSION`.
+2. Cập nhật `version.json` và hai file release notes.
+3. Build cả hai thiết bị.
+4. Xác minh ZIP, manifest, SHA-256, quyền thực thi và không có secret.
+5. Commit/push `main`.
+6. Tạo và push hai annotated tag theo thiết bị.
+7. Mỗi GitHub Release chỉ upload:
+   - `manifest.json`
+   - một ZIP cài đặt theo phiên bản
+   - file `<ZIP>.sha256`
 
-# 3. Build
-./build.sh
+Không upload binary rời, Lite Installer, MPV bundle hoặc checksum tổng hợp.
 
-# 4. Tạo release
-gh release create vX.Y.Z --title "vX.Y.Z" --notes "<changelog>"
+## OTA
 
-# 5. Upload binary
-gh release upload vX.Y.Z bin/RomCloud
-gh release upload vX.Y.Z launch.sh
+- `version.json` chứa package URL và SHA-256 riêng cho từng thiết bị.
+- Client tải ZIP đầy đủ, xác minh SHA-256 và chuẩn bị cài khi restart.
+- `config/settings.json` của người dùng phải được giữ nguyên.
+- Thay đổi OTA phải được kiểm tra với cả luồng cài mới và nâng cấp.
 
-# 6. Commit và push
-git add -A
-git commit -m "vX.Y.Z: <mô tả>"
-git push origin main
-```
+## Checklist Trước Khi Push
 
-### Bước 5: Đánh dấu đã sửa
-```bash
-# Đóng issue với comment
-gh issue close <issue_number> --comment "Đã sửa trong vX.Y.Z"
-```
-
----
-
-## 📦 Build System
-
-### Build Command
-```bash
-./build.sh
-```
-- Sử dụng Zig compiler cho aarch64-linux-gnu
-- Output: `bin/RomCloud`
-
-### Dependencies (trong sysroot/)
-- SDL2, SDL2_image, SDL2_ttf
-- sqlite3, curl, ssl, crypto
-
-### Package cho Release
-```bash
-./package.sh
-```
-- Tạo file zip trong `dist/`
-- Bao gồm: binary, launch.sh, fonts, icons, config
-
----
-
-## 🔧 Các Module chính
-
-### UIManager (src/ui/UIManager.cpp)
-- Vẽ tất cả UI elements
-- States: MENU, SYSTEM_SELECT, GAME_LIST, SETTINGS, OTA_UPDATE, etc.
-- Key methods: `render*()`, `drawText()`, `drawRect()`, `drawBadge()`, `drawIcon()`
-
-### PlatformInfo (src/platform/PlatformInfo.cpp)
-- Detect display resolution, aspect ratio
-- Scale UI cho màn hình khác nhau
-- System info: CPU, RAM, storage
-
-### OTA Update (src/ota/UpdateManager.cpp)
-- Kiểm tra update từ version.json / GitHub Releases API
-- Download binary, verify, install
-
-### Logger (src/logging/Logger.cpp)
-- Ghi log ra file
-- Levels: DEBUG, INFO, WARN, ERROR
-
-### IssueLogger (src/logging/IssueLogger.cpp)
-- Tạo GitHub Issues tự động khi crash/error
-- Cần GitHub token trong config/github_token
-
----
-
-## 🎨 UI Strings
-
-Tất cả text UI trong: `src/ui/UiStrings.h`
-- Sửa text → build lại
-- Format: `inline const char *NAME = "text";`
-
----
-
-## 🔍 Debug Tips
-
-### Xem log trên thiết bị
-```bash
-cat /mnt/SDCARD/Apps/RomCloud/logs/romcloud.log
-```
-
-### Check version hiện tại
-```bash
-strings /mnt/SDCARD/Apps/RomCloud/bin/RomCloud | grep "1\.[0-9]\.[0-9]"
-```
-
-### Test network
-```bash
-curl -I https://api.github.com/repos/bun2it/RomCloud/releases/latest
-```
-
----
-
-## 📝 Issue Format (từ RomCloud app)
-
-Khi user báo lỗi từ app, issue body sẽ có format:
-
-```markdown
-## Lỗi được báo cáo từ thiết bị
-
-### Mô tả lỗi
-```
-<error_message>
-```
-
-### Thông tin thiết bị
-- **App Version:** vX.Y.Z
-- **Device:** <device>
-- **OS:** Linux <kernel>
-- **Display:** <resolution>
-- **RAM:** <free> / <total>
-- **Storage:** <free> / <total>
-- **Network:** <status>
-```
-
----
-
-## ⚙️ Configuration
-
-### Cài đặt trên thiết bị
-- Config: `/mnt/SDCARD/Apps/RomCloud/config/settings.json`
-- Database: `/mnt/SDCARD/Apps/RomCloud/data/romcloud.db`
-
-### GitHub Token (cho IssueLogger)
-- File: `/mnt/SDCARD/Apps/RomCloud/config/github_token`
-- Hoặc set trong database: `screenscraper_user`, `github_token`
-
----
-
-## 🚀 Checklist khi fix Issue
-
-- [ ] Đọc và hiểu issue
-- [ ] Xác định file cần sửa
-- [ ] Edit code
-- [ ] Build: `./build.sh`
-- [ ] Update version: `src/ota/UpdateManager.h` và `version.json`
-- [ ] Test (nếu có thể)
-- [ ] Commit: `fix: <mô tả> #<issue>`
-- [ ] Push: `git push origin main`
-- [ ] Tạo release: `gh release create vX.Y.Z ...`
-- [ ] Upload binary: `gh release upload vX.Y.Z bin/RomCloud`
-- [ ] Close issue: `gh issue close <num> --comment "Fixed in vX.Y.Z"`
-
----
-
-## 📚 Tham khảo
-
-- RomCloud Repo: https://github.com/bun2it/RomCloud
-- Releases: https://github.com/bun2it/RomCloud/releases
-- Issues: https://github.com/bun2it/RomCloud/issues
-
----
-
-*Document này được tạo để hướng dẫn AI agent tự động fix bugs và maintain RomCloud.*
+- [ ] Test liên quan đạt
+- [ ] Brick Pro build thành công
+- [ ] Smart Pro S build thành công
+- [ ] Mỗi thư mục release có đúng 3 asset
+- [ ] Manifest, `.sha256` và ZIP khớp nhau
+- [ ] Binary trong ZIP là AArch64 đúng thiết bị
+- [ ] `launch.sh` và binary có quyền `0755`
+- [ ] Không có token trong source hoặc ZIP
+- [ ] `git diff --check` đạt
+- [ ] `version.json` trỏ tới đúng tag và ZIP

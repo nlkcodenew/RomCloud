@@ -9,7 +9,7 @@ It solves the physical storage constraint of handheld gaming by integrating **Go
 ## Key Features
 
 * **100% Firmware Independence:** Operates entirely inside `/mnt/SDCARD/Apps/RomCloud/`. Never touches `/rom`, `/overlay`, rootfs, or core emulators. Survives all official TrimUI firmware updates.
-* **Over-The-Air (OTA) Updates:** Self-updating client that checks GitHub releases/commits (`version.json`), downloads the latest binary directly over Wi-Fi with live progress, replaces `RomCloud`, and restarts seamlessly.
+* **Over-The-Air (OTA) Updates:** Checks the device-specific channel in `version.json`, downloads the complete release ZIP, verifies SHA-256, preserves user settings, and installs safely on restart.
 * **Native C++17 & SDL2 Hardware Acceleration:** 60 FPS UI using a 1024x768 logical canvas, automatically letterboxed on the Smart Pro S 1280x720 display.
 * **Privacy-safe Diagnostics:** Displays a stable `HW-xxxxxxxxxxxx` device hash and sends sanitized crash logs through an HTTPS relay without storing a GitHub token on the handheld.
 * **SQLite3 Local Metadata Database:** High-performance database with WAL journal mode storing tens of thousands of ROMs, system classifications, cover art paths, file sizes, and sync states.
@@ -62,13 +62,15 @@ romcloud/
 
 ## Build and Release
 
-Build the Brick Pro target with `./build.sh`. Build and package the dedicated
-Smart Pro S channel with `./release-smart-pro-s.sh`; its tag format is
-`smart-pro-s-vX.Y.Z`.
+Build and package the Brick Pro channel with `./release-brick-pro.sh`. Build and
+package the Smart Pro S channel with `./release-smart-pro-s.sh`.
 
 Each device release follows the same compact layout as trimui-chiaki-ng:
 `manifest.json`, one versioned installation ZIP, and its `.zip.sha256` file.
 Users only need to download and extract the versioned ZIP.
+
+See [Release Process](docs/RELEASES.md) for the canonical tag, asset, checksum,
+and OTA rules.
 
 The diagnostics endpoint is configured in `config/reporting.json`. The GitHub
 token belongs only in the Cloudflare Worker secret described in
@@ -78,10 +80,12 @@ token belongs only in the Cloudflare Worker secret described in
 
 ## Documentation
 
-* [Installation Guide](file:///Volumes/TRIMUI/docs/INSTALLATION.md)
-* [User Manual](file:///Volumes/TRIMUI/docs/USER_MANUAL.md)
-* [SQLite Database Architecture](file:///Volumes/TRIMUI/docs/DATABASE.md)
-* [Library UI & Cover Engine](file:///Volumes/TRIMUI/docs/LIBRARY_UI.md)
-* [Google OAuth 2.0 Flow](file:///Volumes/TRIMUI/docs/GOOGLE_AUTH.md)
-* [Drive Sync Engine](file:///Volumes/TRIMUI/docs/DRIVE_SYNC.md)
-* [Download & MD5 Engine](file:///Volumes/TRIMUI/docs/DOWNLOAD_ENGINE.md)
+* [Documentation Index](docs/README.md)
+* [Installation Guide](docs/INSTALLATION.md)
+* [User Manual](docs/USER_MANUAL.md)
+* [Release Process](docs/RELEASES.md)
+* [SQLite Database Architecture](docs/DATABASE.md)
+* [Library UI & Cover Engine](docs/LIBRARY_UI.md)
+* [Google OAuth 2.0 Flow](docs/GOOGLE_AUTH.md)
+* [Drive Sync Engine](docs/DRIVE_SYNC.md)
+* [Download & MD5 Engine](docs/DOWNLOAD_ENGINE.md)

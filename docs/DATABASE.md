@@ -1,6 +1,6 @@
 # RomCloud — Database Specification (Phase 2)
 
-This document details the SQLite database architecture, schema definitions, indexing mechanisms, and data integrity guarantees for **RomCloud** on the TrimUI Brick Pro.
+This document details the shared SQLite database architecture, schema definitions, indexing mechanisms, and data integrity guarantees for **RomCloud** on TrimUI Brick Pro and TrimUI Smart Pro S.
 
 ---
 
@@ -39,7 +39,7 @@ This document details the SQLite database architecture, schema definitions, inde
 ## 2. Relational Schema Definition
 
 ### 2.1 Table: `systems`
-Represents gaming platforms supported on TrimUI Brick Pro. Seeded with 24 verified TrimUI platform definitions.
+Represents gaming platforms supported by RomCloud. Seeded with 24 verified TrimUI platform definitions.
 
 ```sql
 CREATE TABLE systems (

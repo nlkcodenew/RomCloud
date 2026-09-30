@@ -60,6 +60,5 @@ Tôi cam kết:
 
 ---
 
-**Người phát triển: bun2it**
-**GitHub: https://github.com/bun2it/RomCloud**
-**Phiên bản: 2.0.2**
+**GitHub: https://github.com/nlkcodenew/RomCloud**
+**Tài liệu áp dụng từ phiên bản: 2.2.1**

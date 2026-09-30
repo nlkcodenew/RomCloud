@@ -1,6 +1,6 @@
 # RomCloud — Library UI & Cover Flow Specification (Phase 3)
 
-This document details the Native 1024x768 Library User Interface, State Machine, Cover Box Art renderer, and Gamepad navigation mechanics implemented in **Phase 3** of RomCloud on the TrimUI Brick Pro.
+This document details the 1024x768 logical Library UI, state machine, cover renderer, and gamepad navigation shared by TrimUI Brick Pro and TrimUI Smart Pro S. Smart Pro S letterboxes the logical canvas on its 1280x720 display.
 
 ---
 
@@ -32,7 +32,7 @@ This document details the Native 1024x768 Library User Interface, State Machine,
 ## 2. Screen Layout Breakdown (1024 x 768)
 
 ### 2.1 Header Bar (`y: 0` to `64`)
-- **Left:** `RomCloud` brand logo + Subtitle `FOR TRIMUI BRICK PRO`.
+- **Left:** `RomCloud` brand logo and device-appropriate subtitle.
 - **Center:** Active System Title (e.g., `N64 — Nintendo 64`).
 - **Right:** Filter Badge Toggle (`[SELECT] FILTER: ALL` / `LOCAL` / `CLOUD`) or Wi-Fi status indicator.
 
@@ -66,7 +66,7 @@ This document details the Native 1024x768 Library User Interface, State Machine,
 
 ---
 
-## 4. Gamepad Mapping (TrimUI Brick Pro)
+## 4. Gamepad Mapping (Brick Pro / Smart Pro S)
 
 | Button | Function in Library View | Function in System View |
 | :--- | :--- | :--- |

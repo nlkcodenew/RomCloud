@@ -1,81 +1,65 @@
-# HƯỚNG DẪN CÀI ĐẶT ROMCLOUD CHO TRIMUI (BRICK PRO / SMART PRO)
+# Cài Đặt RomCloud
 
-Tài liệu hướng dẫn chi tiết dành cho người dùng lần đầu tiên cài đặt và sử dụng ứng dụng **RomCloud** trên máy TrimUI (hỗ trợ cả Stock OS, NextUI và SpruceOS).
+Tài liệu này áp dụng cho **TrimUI Brick Pro** và **TrimUI Smart Pro S**.
 
----
+## 1. Chọn Đúng Bản Cho Thiết Bị
 
-## 1. Chọn phiên bản cài đặt phù hợp
+Mở trang [RomCloud Releases](https://github.com/nlkcodenew/RomCloud/releases)
+và chọn tag tương ứng:
 
-Chúng tôi cung cấp 2 phương thức cài đặt trên trang [GitHub Releases](https://github.com/bun2it/RomCloud/releases/latest):
+| Thiết bị | Tag | File cần tải |
+| --- | --- | --- |
+| TrimUI Brick Pro | `brick-pro-vX.Y.Z` | `RomCloud-brick-pro-vX.Y.Z.zip` |
+| TrimUI Smart Pro S | `smart-pro-s-vX.Y.Z` | `RomCloud-smart-pro-s-vX.Y.Z.zip` |
 
-| Phiên bản | Dung lượng | Mô tả & Khuyên dùng |
-| :--- | :--- | :--- |
-| ⚡ **RomCloud-Lite-Installer.zip** | **~18 MB** (rất nhẹ) | **(Khuyên dùng)** Bộ cài đặt siêu nhanh. Chỉ cần giải nén copy vào thẻ nhớ. Khi mở app lần đầu trên TrimUI, app sẽ tự kiểm tra và tải các thư viện / video player qua OTA chỉ với 1 click! |
-| 📦 **RomCloud-v2.0.7.zip** | **~29 MB** | **(Bản đầy đủ - Offline)** Đã tích hợp sẵn toàn bộ trình phát video MPV, bộ giải mã codecs và thư viện. Thích hợp nếu bạn không muốn hoặc chưa có kết nối Wi-Fi. |
+Mỗi release còn có `manifest.json` và file `.zip.sha256` để kiểm tra phát hành.
+Người dùng bình thường **chỉ cần tải một file ZIP** trong bảng trên. Không tải
+`Source code (zip)` hoặc `Source code (tar.gz)` do GitHub tự tạo.
 
----
+## 2. Cài Vào Thẻ Nhớ
 
-## 2. Hướng dẫn cài đặt cho người dùng lần đầu (3 Bước Đơn Giản)
+1. Tắt máy và tháo thẻ nhớ, hoặc kết nối thẻ với máy tính.
+2. Giải nén file ZIP vừa tải vào thư mục gốc của thẻ.
+3. Sau khi giải nén, xác nhận có đường dẫn:
 
-### Bước 1: Tải về bộ cài đặt
-1. Truy cập vào [RomCloud Releases](https://github.com/bun2it/RomCloud/releases/latest).
-2. Tải về tệp:
-   * **`RomCloud-Lite-Installer.zip`** (Khuyên dùng) hoặc **`RomCloud-v2.0.7.zip`**.
+   ```text
+   /mnt/SDCARD/Apps/RomCloud/launch.sh
+   /mnt/SDCARD/Apps/RomCloud/bin/RomCloud
+   ```
 
-### Bước 2: Sao chép vào thẻ nhớ SD
-1. Kết nối thẻ nhớ MicroSD của máy TrimUI vào máy tính (bằng đầu đọc thẻ hoặc bật chế độ *USB Storage* trên máy TrimUI).
-2. Giải nén tệp zip vừa tải. Bạn sẽ thấy thư mục `Apps`.
-3. Kéo thả thư mục `Apps` vào **thư mục gốc (Root)** của thẻ nhớ:
-   * Cấu trúc đường dẫn chuẩn trên thẻ nhớ sẽ là:
-     ```text
-     [Thẻ nhớ MicroSD]/
-     └── Apps/
-         └── RomCloud/
-             ├── config.json
-             ├── icon.png
-             ├── launch.sh
-             ├── bin/
-             │   └── RomCloud
-             ├── assets/
-             ├── iptv/
-             └── config/
-     ```
-4. Ngắt kết nối thẻ nhớ an toàn (Eject) và cắm lại vào máy TrimUI.
+4. Tháo thẻ an toàn, lắp lại vào máy và khởi động.
+5. Mở **Apps → RomCloud**.
 
-### Bước 3: Khởi chạy và kích hoạt lần đầu
-1. Mở máy TrimUI, vào mục **Apps** (hoặc ứng dụng) trên màn hình chính:
-   * Bạn sẽ thấy ngay biểu tượng logo **RomCloud** màu xanh neon nổi bật.
-2. Bấm nút **A** để mở ứng dụng.
-3. **Nếu dùng bản Lite:**
-   * Ứng dụng sẽ tự động thông báo cài đặt các thành phần phụ trợ (Trình phát MPV & Codecs giải mã TV).
-   * Bấm nút **A** để app tự tải và hoàn tất cài đặt tự động qua Wi-Fi.
+Không chép nguyên file ZIP vào `Apps/RomCloud`; phải giải nén để thư mục `Apps`
+trong ZIP hòa vào thư mục `Apps` trên thẻ nhớ.
 
----
+## 3. Cập Nhật OTA
 
-## 3. Kết nối Google Drive & Thưởng thức ROMs
+1. Kết nối Wi-Fi.
+2. Trong RomCloud, mở màn hình **Cập nhật**.
+3. Chọn cập nhật khi có phiên bản mới.
+4. Ứng dụng tải ZIP đúng thiết bị và xác minh SHA-256.
+5. Khởi động lại theo hướng dẫn để hoàn tất cài đặt.
 
-1. Kết nối máy TrimUI vào mạng **Wi-Fi** (trong Cài đặt của máy TrimUI).
-2. Mở **RomCloud** -> vào mục **Cài Đặt** hoặc xem góc trên màn hình:
-   * Màn hình sẽ hiển thị địa chỉ Web Portal: `http://<IP_MÁY_TRIMUI>:8080` (ví dụ: `http://192.168.1.50:8080`).
-3. Mở trình duyệt trên máy tính hoặc điện thoại (cùng mạng Wi-Fi), truy cập địa chỉ trên.
-4. Bấm nút **"Đăng nhập Google Drive"** để liên kết kho ROM của bạn:
-   * App sẽ tự động đồng bộ danh sách game, tải ảnh bìa Boxart và cho phép bạn tải game về chơi ngay lập tức!
+OTA giữ lại `config/settings.json`. Không tắt máy hoặc tháo thẻ trong lúc đang
+tải hay cài đặt.
 
----
+## 4. Kiểm Tra SHA-256 Tùy Chọn
 
-## 4. Quản lý xem TV Online (IPTV)
+File `<tên ZIP>.sha256` chứa checksum chính thức. Có thể kiểm tra trên máy tính:
 
-1. Truy cập vào địa chỉ Web Portal `http://<IP_MÁY_TRIMUI>:8080`.
-2. Chuyển sang tab **"Quản Lý IPTV"**:
-   * **Thêm từ link URL:** Dán đường dẫn link m3u/m3u8 và đặt tên nguồn (ví dụ: *Kênh Thể Thao*, *Kênh Tin Tức*).
-   * **Upload file M3U:** Tải file danh sách kênh từ máy tính lên trực tiếp TrimUI.
-   * **Xóa / Tải lại:** Quản lý xóa hoặc cập nhật nguồn kênh chỉ bằng 1 nút bấm.
-3. Trên máy TrimUI, vào mục **XEM TV** để thưởng thức hàng trăm kênh truyền hình với khả năng tìm kiếm nhanh và phím **L1 / R1** sang trang cực nhanh!
+```sh
+sha256sum -c RomCloud-brick-pro-vX.Y.Z.zip.sha256
+```
 
----
+Thay tên file bằng bản Smart Pro S nếu cần. Nếu checksum không khớp, xóa file
+và tải lại từ GitHub Releases.
 
-## 5. Nguyên tắc an toàn & Bảo vệ Firmware
+## 5. Xử Lý Sự Cố
 
-* RomCloud hoạt động độc lập 100% trong thư mục `/mnt/SDCARD/Apps/RomCloud`.
-* Không can thiệp, không sửa đổi bất kỳ file hệ thống nào của TrimUI.
-* Khi bạn nâng cấp firmware TrimUI, RomCloud và toàn bộ tài khoản, game và dữ liệu đã lưu **được giữ nguyên vẹn 100%**.
+- **App không xuất hiện:** kiểm tra đúng đường dẫn `Apps/RomCloud/config.json`.
+- **App không chạy:** xác nhận đã tải đúng ZIP cho thiết bị.
+- **ZIP có thêm một thư mục lồng:** di chuyển thư mục `Apps` về gốc thẻ nhớ.
+- **OTA thất bại:** kiểm tra Wi-Fi, dung lượng trống và thử tải ZIP thủ công.
+- **Cần báo lỗi:** mở mục chẩn đoán trong ứng dụng và cung cấp mã thiết bị băm
+  `HW-xxxxxxxxxxxx`; không gửi token, mật khẩu hoặc mã định danh phần cứng thô.
