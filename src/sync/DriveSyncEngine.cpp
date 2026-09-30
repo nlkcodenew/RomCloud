@@ -4,12 +4,81 @@
 #include "../auth/AuthManager.h"
 #include "../logging/Logger.h"
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <iomanip>
+#include <unordered_set>
 
 namespace RomCloud {
 
 static const char* DRIVE_FILES_ENDPOINT = "https://www.googleapis.com/drive/v3/files";
+
+static std::string gameMatchKey(const std::string& filename) {
+    std::string value = filename;
+    size_t slash = value.find_last_of("/\\");
+    if (slash != std::string::npos) value = value.substr(slash + 1);
+    size_t dot = value.find_last_of('.');
+    if (dot != std::string::npos) value = value.substr(0, dot);
+
+    std::string withoutTags;
+    for (size_t i = 0; i < value.size();) {
+        if (value[i] == '(' || value[i] == '[') {
+            const char close = value[i] == '(' ? ')' : ']';
+            const size_t end = value.find(close, i + 1);
+            if (end != std::string::npos) {
+                std::string tag = value.substr(i + 1, end - i - 1);
+                std::string lowerTag = tag;
+                std::transform(lowerTag.begin(), lowerTag.end(), lowerTag.begin(),
+                               [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+                if (lowerTag.find("disc") != std::string::npos ||
+                    lowerTag.find("disk") != std::string::npos ||
+                    lowerTag.find("rev") != std::string::npos ||
+                    lowerTag.find("version") != std::string::npos ||
+                    lowerTag.find("beta") != std::string::npos ||
+                    lowerTag.find("proto") != std::string::npos) {
+                    withoutTags += ' ' + tag + ' ';
+                } else {
+                    withoutTags += ' ';
+                }
+                i = end + 1;
+                continue;
+            }
+        }
+        withoutTags += value[i++];
+    }
+
+    std::string key;
+    bool previousSpace = true;
+    for (unsigned char ch : withoutTags) {
+        if (std::isalnum(ch) || ch >= 0x80) {
+            key += static_cast<char>(std::tolower(ch));
+            previousSpace = false;
+        } else if (!previousSpace) {
+            key += ' ';
+            previousSpace = true;
+        }
+    }
+    while (!key.empty() && key.back() == ' ') key.pop_back();
+    return key;
+}
+
+static std::unordered_map<int, std::unordered_set<std::string>> reconcileLocalCloudDuplicates(
+        const std::vector<SystemRecord>& systems) {
+    std::unordered_map<int, std::unordered_set<std::string>> localGameKeys;
+    auto& database = DatabaseManager::instance();
+    for (const auto& system : systems) {
+        auto& keys = localGameKeys[system.id];
+        for (const auto& game : database.getGamesBySystem(system.id, static_cast<int>(GameState::LOCAL))) {
+            keys.insert(gameMatchKey(game.filename));
+        }
+        for (const auto& cloud : database.getGamesBySystem(system.id, static_cast<int>(GameState::CLOUD))) {
+            if (keys.count(gameMatchKey(cloud.filename)) > 0 && database.deleteCloudGame(cloud.id)) {
+                Logger::info("Drive sync: removed stale cloud duplicate: " + system.code + "/" + cloud.filename);
+            }
+        }
+    }
+    return localGameKeys;
+}
 
 DriveSyncEngine& DriveSyncEngine::instance() {
     static DriveSyncEngine instance;
@@ -191,12 +260,18 @@ std::unordered_map<std::string, std::string> DriveSyncEngine::discoverSystemFold
 int DriveSyncEngine::syncFilesForSystem(const SystemRecord& system, const std::string& folderId, const std::string& token) {
     int count = 0;
     std::string pageToken = "";
+    std::unordered_set<std::string> localGameKeys;
+    for (const auto& local : DatabaseManager::instance().getGamesBySystem(system.id, static_cast<int>(GameState::LOCAL))) {
+        localGameKeys.insert(gameMatchKey(local.filename));
+    }
 
     // Parse supported extensions
     std::vector<std::string> extList;
-    std::stringstream ss(system.extList);
+    std::string extensions = system.extList;
+    std::replace(extensions.begin(), extensions.end(), ',', '|');
+    std::stringstream ss(extensions);
     std::string ext;
-    while (std::getline(ss, ext, ',')) {
+    while (std::getline(ss, ext, '|')) {
         while (!ext.empty() && ext.front() == ' ') ext.erase(0, 1);
         while (!ext.empty() && ext.back() == ' ') ext.pop_back();
         std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
@@ -265,6 +340,11 @@ int DriveSyncEngine::syncFilesForSystem(const SystemRecord& system, const std::s
                 m_progress.updatedGames++;
                 m_progress.cloudGamesFound++;
             } else {
+                if (localGameKeys.find(gameMatchKey(filename)) != localGameKeys.end()) {
+                    Logger::info("Drive sync: hidden cloud duplicate because local game exists: " +
+                                 system.code + "/" + filename);
+                    continue;
+                }
                 // New game discovered on cloud!
                 GameRecord newGame;
                 newGame.cloudFileId = fileId;
@@ -636,12 +716,18 @@ void DriveSyncEngine::syncPublicFolder(const std::string& rootFolderId) {
         m_progress.currentSystemIndex = 0;
     }
 
+    auto localGameKeys = reconcileLocalCloudDuplicates(dbSystems);
     DatabaseManager::instance().beginTransaction();
 
     // 1. Direct files in root (e.g. system full-set zip files)
     for (const auto& job : directFileJobs) {
         if (m_cancelRequested) break;
         if (job.second.name.empty() || job.second.name[0] == '.') continue;
+        if (localGameKeys[job.first.id].count(gameMatchKey(job.second.name)) > 0) {
+            Logger::info("Public Drive sync: hidden cloud duplicate because local game exists: " +
+                         job.first.code + "/" + job.second.name);
+            continue;
+        }
         GameRecord g;
         g.systemId = job.first.id;
         g.filename = job.second.name;
@@ -694,6 +780,11 @@ void DriveSyncEngine::syncPublicFolder(const std::string& rootFolderId) {
         for (const auto& file : allSystemItems) {
             if (m_cancelRequested) break;
             if (file.name.empty() || file.name[0] == '.') continue;
+            if (localGameKeys[sys.id].count(gameMatchKey(file.name)) > 0) {
+                Logger::info("Public Drive sync: hidden cloud duplicate because local game exists: " +
+                             sys.code + "/" + file.name);
+                continue;
+            }
             GameRecord g;
             g.systemId = sys.id;
             g.filename = file.name;
@@ -779,6 +870,7 @@ void DriveSyncEngine::runSyncWorker() {
         m_progress.totalSystems = static_cast<int>(systems.size());
     }
 
+    reconcileLocalCloudDuplicates(systems);
     DatabaseManager::instance().beginTransaction();
 
     int totalSynced = 0;

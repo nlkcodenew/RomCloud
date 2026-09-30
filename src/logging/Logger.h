@@ -2,6 +2,7 @@
 #include <string>
 #include <fstream>
 #include <mutex>
+#include <functional>
 
 namespace RomCloud {
 
@@ -25,6 +26,8 @@ public:
     static void warn(const std::string& msg);
     static void error(const std::string& msg);
 
+    void setErrorCallback(std::function<void(const std::string&)> callback);
+
     const std::string& getLogFilePath() const { return m_filePath; }
 
 private:
@@ -37,6 +40,7 @@ private:
     std::mutex m_mutex;
     std::string m_filePath;
     bool m_initialized = false;
+    std::function<void(const std::string&)> m_errorCallback;
 };
 
 } // namespace RomCloud

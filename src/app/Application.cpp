@@ -214,6 +214,10 @@ bool Application::init(int argc, char* argv[]) {
 
     // Initialize Network, OAuth, Sync & Download
     HttpClient::instance().init();
+    IssueLogger::instance().init();
+    Logger::instance().setErrorCallback([](const std::string& message) {
+        IssueLogger::instance().enqueueError(message);
+    });
     IssueLogger::instance().uploadPending("startup_retry");
     WebServer::instance().start(8080);
 
@@ -377,6 +381,8 @@ void Application::shutdown() {
     }
 
     DatabaseManager::instance().close();
+    Logger::instance().setErrorCallback(nullptr);
+    IssueLogger::instance().shutdown();
     HttpClient::instance().shutdown();
     SDL_Quit();
 

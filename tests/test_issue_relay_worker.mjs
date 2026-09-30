@@ -32,10 +32,16 @@ const env = {
 
 let githubCalls = 0;
 let githubPayload;
-globalThis.fetch = async (_url, options) => {
+const githubComments = [];
+globalThis.fetch = async (url, options) => {
   githubCalls += 1;
-  githubPayload = JSON.parse(options.body);
-  return new Response(JSON.stringify({ html_url: "https://github.com/example/issues/1" }), {
+  const payload = JSON.parse(options.body);
+  if (String(url).endsWith("/comments")) {
+    githubComments.push(payload.body);
+    return new Response(JSON.stringify({ id: githubComments.length }), { status: 201 });
+  }
+  githubPayload = payload;
+  return new Response(JSON.stringify({ html_url: "https://github.com/example/issues/1", number: 1 }), {
     status: 201,
     headers: { "Content-Type": "application/json" },
   });
@@ -49,6 +55,7 @@ const report = {
   fingerprint,
   title: "[device-log][HW-ABCDEF123456] v2.1.2 crash aaaaaaaa",
   body: "token=github_pat_secret 192.168.1.2 aa:bb:cc:dd:ee:ff",
+  log: `${"diagnostic line\n".repeat(4000)}token=github_pat_log_secret`,
 };
 
 const request = () => new Request("https://relay.example/report", {
@@ -59,15 +66,18 @@ const request = () => new Request("https://relay.example/report", {
 
 const firstResponse = await worker.fetch(request(), env);
 assert.equal(firstResponse.status, 201);
-assert.equal(githubCalls, 1);
+assert.equal(githubCalls, 3);
 assert.match(githubPayload.body, /\[REDACTED_(?:TOKEN|SECRET)\]/);
 assert.match(githubPayload.body, /\[PRIVATE_IP\]/);
 assert.match(githubPayload.body, /\[MAC_ADDRESS\]/);
 assert.doesNotMatch(githubPayload.body, /github_pat_secret|192\.168\.1\.2|aa:bb:cc:dd:ee:ff/);
+assert.equal(githubComments.length, 2);
+assert.match(githubComments.join("\n"), /debug\.log \(1\/2\)/);
+assert.doesNotMatch(githubComments.join("\n"), /github_pat_log_secret/);
 
 const duplicateResponse = await worker.fetch(request(), env);
 assert.equal(duplicateResponse.status, 200);
-assert.equal(githubCalls, 1);
+assert.equal(githubCalls, 3);
 
 const invalidResponse = await worker.fetch(new Request("https://relay.example/report", {
   method: "POST",

@@ -71,5 +71,5 @@ Before creating tags:
 
 ## Current Release
 
-- Brick Pro: `brick-pro-v2.2.1`
-- Smart Pro S: `smart-pro-s-v2.2.1`
+- Brick Pro: `brick-pro-v2.2.2`
+- Smart Pro S: `smart-pro-s-v2.2.2`

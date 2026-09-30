@@ -22,10 +22,11 @@ void Logger::init(const std::string& logFilePath) {
     m_filePath = logFilePath;
     if (m_logFile.is_open()) m_logFile.close();
 
-    // Check file size, if > 512KB rotate to keep debug log compact
+    // Keep one previous log plus a detailed current log for remote diagnostics.
     struct stat st;
-    if (stat(logFilePath.c_str(), &st) == 0 && st.st_size > 512 * 1024) {
+    if (stat(logFilePath.c_str(), &st) == 0 && st.st_size > 2 * 1024 * 1024) {
         std::string oldPath = logFilePath + ".old";
+        remove(oldPath.c_str());
         rename(logFilePath.c_str(), oldPath.c_str());
     }
 
@@ -43,7 +44,8 @@ void Logger::header(const std::string& message) {
 }
 
 void Logger::log(LogLevel level, const std::string& message) {
-    std::lock_guard<std::mutex> lock(m_mutex);
+    std::function<void(const std::string&)> errorCallback;
+    std::unique_lock<std::mutex> lock(m_mutex);
     auto now = std::chrono::system_clock::now();
     auto in_time_t = std::chrono::system_clock::to_time_t(now);
     std::stringstream ss;
@@ -60,14 +62,19 @@ void Logger::log(LogLevel level, const std::string& message) {
     std::string line = "[" + ss.str() + "] [" + levelStr + "] " + message;
     std::cout << line << std::endl;
 
-    // Filter out INFO and DEBUG from debug log file on disk!
-    // ONLY save WARNING and ERROR to disk so the log is clean and focused for developer debugging!
-    if (level == LogLevel::WARNING || level == LogLevel::LOG_ERROR) {
-        if (m_initialized && m_logFile.is_open()) {
-            m_logFile << line << std::endl;
-            m_logFile.flush();
-        }
+    if (m_initialized && m_logFile.is_open()) {
+        m_logFile << line << std::endl;
+        m_logFile.flush();
     }
+
+    if (level == LogLevel::LOG_ERROR) errorCallback = m_errorCallback;
+    lock.unlock();
+    if (errorCallback) errorCallback(message);
+}
+
+void Logger::setErrorCallback(std::function<void(const std::string&)> callback) {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_errorCallback = std::move(callback);
 }
 
 void Logger::flush() {

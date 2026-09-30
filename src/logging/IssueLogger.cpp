@@ -11,22 +11,26 @@
 
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <cstdlib>
 #include <cstdio>
 #include <fstream>
 #include <regex>
 #include <sstream>
 #include <sys/stat.h>
+#include <unistd.h>
 
 namespace RomCloud {
 
 namespace {
 
-constexpr size_t MAX_LOG_BYTES = 24000;
-constexpr size_t MAX_BODY_CHARS = 60000;
+constexpr size_t MAX_LOG_BYTES = 2 * 1024 * 1024;
+constexpr size_t MAX_BODY_CHARS = 48000;
 
-size_t discardResponse(void*, size_t size, size_t count, void*) {
-    return size * count;
+size_t captureResponse(void* contents, size_t size, size_t count, void* userData) {
+    const size_t bytes = size * count;
+    static_cast<std::string*>(userData)->append(static_cast<const char*>(contents), bytes);
+    return bytes;
 }
 
 } // namespace
@@ -56,6 +60,59 @@ IssueLogger::IssueLogger() {
     }
 }
 
+IssueLogger::~IssueLogger() {
+    shutdown();
+}
+
+void IssueLogger::init() {
+    std::lock_guard<std::mutex> lock(m_queueMutex);
+    if (m_running) return;
+    m_stopRequested = false;
+    m_running = true;
+    m_worker = std::thread(&IssueLogger::workerLoop, this);
+}
+
+void IssueLogger::shutdown() {
+    {
+        std::lock_guard<std::mutex> lock(m_queueMutex);
+        if (!m_running) return;
+        m_stopRequested = true;
+    }
+    m_queueCv.notify_all();
+    if (m_worker.joinable()) m_worker.join();
+    std::lock_guard<std::mutex> lock(m_queueMutex);
+    m_running = false;
+}
+
+void IssueLogger::enqueueError(const std::string& message) {
+    if (message.rfind("IssueLogger:", 0) == 0) return;
+    {
+        std::lock_guard<std::mutex> lock(m_queueMutex);
+        if (std::find(m_errorQueue.begin(), m_errorQueue.end(), message) != m_errorQueue.end()) return;
+        if (m_errorQueue.size() >= 100) m_errorQueue.pop_front();
+        m_errorQueue.push_back(message);
+    }
+    m_queueCv.notify_one();
+}
+
+void IssueLogger::workerLoop() {
+    while (true) {
+        std::unique_lock<std::mutex> lock(m_queueMutex);
+        m_queueCv.wait(lock, [this]() { return m_stopRequested || !m_errorQueue.empty(); });
+        if (m_stopRequested && m_errorQueue.empty()) break;
+        m_queueCv.wait_for(lock, std::chrono::seconds(2), [this]() { return m_stopRequested; });
+
+        std::deque<std::string> errors;
+        errors.swap(m_errorQueue);
+        lock.unlock();
+
+        std::ostringstream details;
+        details << "Các lỗi được gom trong cùng một tác vụ:\n";
+        for (const auto& error : errors) details << "- " << error << "\n";
+        sendReport("runtime_error", "Báo cáo lỗi vận hành tự động từ thiết bị TrimUI.", details.str());
+    }
+}
+
 bool IssueLogger::isEnabled() const { return m_enabled; }
 int IssueLogger::getRecentIssuesCount() const { return m_issueCount; }
 
@@ -71,14 +128,21 @@ std::string IssueLogger::readRelayUrl() const {
 }
 
 std::string IssueLogger::readLogTail() const {
-    std::ifstream file(Logger::instance().getLogFilePath(), std::ios::binary);
-    if (!file.is_open()) return "";
-    file.seekg(0, std::ios::end);
-    const std::streamoff size = file.tellg();
-    file.seekg(std::max<std::streamoff>(0, size - static_cast<std::streamoff>(MAX_LOG_BYTES)));
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
+    const std::string currentPath = Logger::instance().getLogFilePath();
+    std::string result;
+    for (const auto& path : {currentPath + ".old", currentPath}) {
+        std::ifstream file(path, std::ios::binary);
+        if (!file.is_open()) continue;
+        file.seekg(0, std::ios::end);
+        const std::streamoff size = file.tellg();
+        file.seekg(std::max<std::streamoff>(0, size - static_cast<std::streamoff>(MAX_LOG_BYTES)));
+        std::stringstream buffer;
+        buffer << file.rdbuf();
+        if (!result.empty()) result += "\n--- NEXT LOG FILE ---\n";
+        result += buffer.str();
+        if (result.size() > MAX_LOG_BYTES) result.erase(0, result.size() - MAX_LOG_BYTES);
+    }
+    return result;
 }
 
 std::string IssueLogger::sanitize(const std::string& input) const {
@@ -158,11 +222,11 @@ bool IssueLogger::sendReport(const std::string& rawReason,
     const std::string reason = cleanReason(rawReason);
     const std::string hardwareId = DeviceIdentity::hardwareId();
     const std::string model = DeviceIdentity::deviceModel();
-    const std::string logTail = sanitize(readLogTail());
+    const std::string fullLog = sanitize(readLogTail());
     std::string details = sanitize(rawDetails);
     if (details.size() > 16000) details = details.substr(details.size() - 16000);
     const std::string fingerprint = DeviceIdentity::sha256Hex(
-        hardwareId + "\n" + reason + "\n" + details + "\n" + logTail);
+        hardwareId + "\n" + reason + "\n" + details + "\n" + fullLog);
 
     const std::string statePath = AppConfig::instance().getDataDir() + "/issue_report_state";
     std::ifstream stateIn(statePath);
@@ -186,7 +250,6 @@ bool IssueLogger::sendReport(const std::string& rawReason,
     body << "| Fingerprint | `" << fingerprint.substr(0, 16) << "` |\n\n";
     body << "> Token, mật khẩu, IP nội bộ, MAC, serial, chip ID và machine-id thô đã được lọc.\n";
     if (!details.empty()) body << "\n### Chi tiết\n```text\n" << details << "\n```\n";
-    if (!logTail.empty()) body << "\n### debug.log\n```text\n" << logTail << "\n```\n";
     std::string bodyText = body.str().substr(0, MAX_BODY_CHARS);
 
     const std::string title = "[device-log][" + hardwareId + "] v" + APP_VERSION +
@@ -194,7 +257,7 @@ bool IssueLogger::sendReport(const std::string& rawReason,
     const std::string payload = "{\"schema\":1,\"app\":\"romcloud\",\"version\":\"" +
         std::string(APP_VERSION) + "\",\"fingerprint\":\"" + fingerprint +
         "\",\"title\":\"" + jsonEscape(title) + "\",\"body\":\"" +
-        jsonEscape(bodyText) + "\"}";
+        jsonEscape(bodyText) + "\",\"log\":\"" + jsonEscape(fullLog) + "\"}";
 
     CURL* curl = curl_easy_init();
     if (!curl) return false;
@@ -207,10 +270,19 @@ bool IssueLogger::sendReport(const std::string& rawReason,
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload.c_str());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(payload.size()));
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, discardResponse);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+    std::string responseBody;
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, captureResponse);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &responseBody);
+    if (access("/etc/ssl/certs/ca-certificates.crt", F_OK) == 0) {
+        curl_easy_setopt(curl, CURLOPT_CAINFO, "/etc/ssl/certs/ca-certificates.crt");
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);
+    } else {
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+    }
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 15L);
+    curl_easy_setopt(curl, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, 8L);
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 90L);
 
     const CURLcode result = curl_easy_perform(curl);
     long httpCode = 0;
@@ -222,10 +294,12 @@ bool IssueLogger::sendReport(const std::string& rawReason,
         std::ofstream stateOut(statePath, std::ios::trunc);
         stateOut << fingerprint << "\n";
         ++m_issueCount;
-        Logger::info("IssueLogger: diagnostic report accepted for " + hardwareId);
+        Logger::info("IssueLogger: diagnostic report accepted for " + hardwareId +
+                     (responseBody.empty() ? "" : " response=" + responseBody));
         return true;
     }
-    Logger::warn("IssueLogger: relay upload failed (HTTP " + std::to_string(httpCode) + ")");
+    Logger::warn("IssueLogger: relay upload failed (curl=" + std::string(curl_easy_strerror(result)) +
+                 ", HTTP " + std::to_string(httpCode) + ", response=" + responseBody + ")");
     rememberPending(reason, rawSummary, rawDetails);
     return false;
 }

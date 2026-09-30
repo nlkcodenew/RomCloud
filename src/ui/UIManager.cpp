@@ -5321,7 +5321,7 @@ std::vector<std::string> UIManager::runYouTubeSearch(const std::string& query, i
         escapedQuery += c;
     }
 
-    std::string cmd = "\"" + scriptPath + "\" search \"" + escapedQuery + "\" " + std::to_string(page) + " 6 2>/dev/null";
+    std::string cmd = "\"" + scriptPath + "\" search \"" + escapedQuery + "\" " + std::to_string(page) + " 6 2>&1";
     Logger::info("[YouTube] Fallback script search: " + cmd);
 
     FILE* pipe = popen(cmd.c_str(), "r");
@@ -5333,7 +5333,10 @@ std::vector<std::string> UIManager::runYouTubeSearch(const std::string& query, i
         while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
             line.pop_back();
         }
-        if (line.find("ERROR:") == 0 || line.find("WARNING:") == 0) continue;
+        if (line.find("ERROR:") == 0 || line.find("WARNING:") == 0 || line.find("YTDLP:") == 0) {
+            Logger::warn("[YouTube] Search extractor: " + line);
+            continue;
+        }
         if (std::count(line.begin(), line.end(), '|') >= 4) {
             results.push_back(line);
         }
@@ -5365,7 +5368,7 @@ std::string UIManager::resolveYouTubeStreamUrl(const std::string& videoId) {
         UpdateManager::instance().checkAndInstallDependencies();
     }
 
-    std::string cmd = "\"" + scriptPath + "\" url \"" + videoId + "\" 360 2>/dev/null";
+    std::string cmd = "\"" + scriptPath + "\" url \"" + videoId + "\" 360 2>&1";
 
     Logger::info("[YouTube] Resolving video URL: " + cmd);
     FILE* pipe = popen(cmd.c_str(), "r");
@@ -5374,10 +5377,11 @@ std::string UIManager::resolveYouTubeStreamUrl(const std::string& videoId) {
         return "";
     }
 
-    char buffer[4096];
     std::string streamUrl;
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-        std::string line(buffer);
+    char* lineBuffer = nullptr;
+    size_t lineCapacity = 0;
+    while (getline(&lineBuffer, &lineCapacity, pipe) != -1) {
+        std::string line(lineBuffer);
         while (!line.empty() && (line.back() == '\n' || line.back() == '\r')) {
             line.pop_back();
         }
@@ -5385,12 +5389,17 @@ std::string UIManager::resolveYouTubeStreamUrl(const std::string& videoId) {
             streamUrl = line;
             break;
         }
+        if (!line.empty()) Logger::warn("[YouTube] URL extractor: " + line);
     }
-    pclose(pipe);
+    free(lineBuffer);
+    int resolverStatus = pclose(pipe);
 
     if (!streamUrl.empty()) {
         std::lock_guard<std::mutex> lock(s_ytStreamMutex);
         m_ytStreamUrlCache[videoId] = streamUrl;
+    } else {
+        Logger::error("[YouTube] Failed to resolve stream URL for video_id=" + videoId +
+                      " resolver_status=" + std::to_string(resolverStatus));
     }
     return streamUrl;
 }

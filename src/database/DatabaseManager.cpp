@@ -6,6 +6,7 @@
 #include "../network/JsonHelper.h"
 
 #include <chrono>
+#include <algorithm>
 #include <iomanip>
 #include <sstream>
 #include <fstream>
@@ -101,12 +102,27 @@ bool DatabaseManager::init(const std::string& dbPath) {
 
     seedDefaultSystems();
 
-    // Ensure metadata columns exist (safe idempotent migration for existing databases)
-    executeSimpleQuery("ALTER TABLE games ADD COLUMN description TEXT;");
-    executeSimpleQuery("ALTER TABLE games ADD COLUMN developer TEXT;");
-    executeSimpleQuery("ALTER TABLE games ADD COLUMN publisher TEXT;");
-    executeSimpleQuery("ALTER TABLE games ADD COLUMN genre TEXT;");
-    executeSimpleQuery("ALTER TABLE games ADD COLUMN release_year TEXT;");
+    std::vector<std::string> gameColumns;
+    sqlite3_stmt* columnStmt = nullptr;
+    if (sqlite3_prepare_v2(m_db, "PRAGMA table_info(games);", -1, &columnStmt, nullptr) == SQLITE_OK) {
+        while (sqlite3_step(columnStmt) == SQLITE_ROW) {
+            const char* name = reinterpret_cast<const char*>(sqlite3_column_text(columnStmt, 1));
+            if (name) gameColumns.emplace_back(name);
+        }
+        sqlite3_finalize(columnStmt);
+    }
+    const std::pair<const char*, const char*> metadataColumns[] = {
+        {"description", "ALTER TABLE games ADD COLUMN description TEXT;"},
+        {"developer", "ALTER TABLE games ADD COLUMN developer TEXT;"},
+        {"publisher", "ALTER TABLE games ADD COLUMN publisher TEXT;"},
+        {"genre", "ALTER TABLE games ADD COLUMN genre TEXT;"},
+        {"release_year", "ALTER TABLE games ADD COLUMN release_year TEXT;"},
+    };
+    for (const auto& column : metadataColumns) {
+        if (std::find(gameColumns.begin(), gameColumns.end(), column.first) == gameColumns.end()) {
+            executeSimpleQuery(column.second);
+        }
+    }
 
     std::string settingsPath = AppConfig::instance().getSettingsPath();
     if (FileSystemManager::instance().fileExists(settingsPath)) {
@@ -998,6 +1014,19 @@ bool DatabaseManager::clearCloudGames() {
     executeSimpleQuery("UPDATE settings SET value = 'Never' WHERE key = 'last_cloud_sync_time';");
     Logger::info("DatabaseManager: Cleared all un-downloaded cloud game records.");
     return true;
+}
+
+bool DatabaseManager::deleteCloudGame(int64_t gameId) {
+    std::lock_guard<std::recursive_mutex> lock(m_mutex);
+    if (!m_db || gameId <= 0) return false;
+    sqlite3_stmt* stmt = nullptr;
+    bool deleted = false;
+    if (sqlite3_prepare_v2(m_db, "DELETE FROM games WHERE id = ? AND local_state = 0;", -1, &stmt, nullptr) == SQLITE_OK) {
+        sqlite3_bind_int64(stmt, 1, gameId);
+        deleted = sqlite3_step(stmt) == SQLITE_DONE && sqlite3_changes(m_db) > 0;
+        sqlite3_finalize(stmt);
+    }
+    return deleted;
 }
 
 bool DatabaseManager::getGameCountsBySystem(int systemId, int& outLocal, int& outCloud) {

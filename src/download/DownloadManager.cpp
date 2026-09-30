@@ -299,6 +299,8 @@ void DownloadManager::runDownloadWorker() {
     curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, xferCallback);
     curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
+    curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
     if (access("/etc/ssl/certs/ca-certificates.crt", F_OK) == 0) {
         curl_easy_setopt(curl, CURLOPT_CAINFO, "/etc/ssl/certs/ca-certificates.crt");
     }
@@ -316,6 +318,11 @@ void DownloadManager::runDownloadWorker() {
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
     curl_off_t speedBytesPerSec = 0;
     curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, &speedBytesPerSec);
+    curl_off_t responseLength = -1;
+    curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &responseLength);
+    char* responseType = nullptr;
+    curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &responseType);
+    std::string responseTypeText = responseType ? responseType : "unknown";
 
     curl_slist_free_all(headers);
     curl_easy_cleanup(curl);
@@ -338,8 +345,7 @@ void DownloadManager::runDownloadWorker() {
         long fileSize = 0;
         if (stat(m_tempFilePath.c_str(), &st) == 0) fileSize = st.st_size;
 
-        if (httpCode == 200 && fileSize > 0 && fileSize < 128 * 1024 &&
-            m_activeGame.sizeBytes > 256 * 1024) {
+        if (httpCode == 200 && fileSize > 0 && fileSize < 128 * 1024) {
             // Suspect it's an HTML confirmation page, not the real file.
             std::string htmlContent;
             FILE* checkFp = fopen(m_tempFilePath.c_str(), "r");
@@ -407,6 +413,8 @@ void DownloadManager::runDownloadWorker() {
                 curl_easy_setopt(curl2, CURLOPT_XFERINFOFUNCTION, xferCallback);
                 curl_easy_setopt(curl2, CURLOPT_XFERINFODATA, this);
                 curl_easy_setopt(curl2, CURLOPT_FOLLOWLOCATION, 1L);
+                curl_easy_setopt(curl2, CURLOPT_FAILONERROR, 1L);
+                curl_easy_setopt(curl2, CURLOPT_ACCEPT_ENCODING, "");
                 curl_easy_setopt(curl2, CURLOPT_SSL_VERIFYPEER, 0L);
                 curl_easy_setopt(curl2, CURLOPT_SSL_VERIFYHOST, 0L);
                 curl_easy_setopt(curl2, CURLOPT_CONNECTTIMEOUT, 15);
@@ -414,6 +422,9 @@ void DownloadManager::runDownloadWorker() {
                 curl_easy_setopt(curl2, CURLOPT_LOW_SPEED_TIME, 30L);
                 res = curl_easy_perform(curl2);
                 curl_easy_getinfo(curl2, CURLINFO_RESPONSE_CODE, &httpCode);
+                curl_easy_getinfo(curl2, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &responseLength);
+                curl_easy_getinfo(curl2, CURLINFO_CONTENT_TYPE, &responseType);
+                responseTypeText = responseType ? responseType : "unknown";
                 curl_easy_cleanup(curl2);
                 fclose(fp2);
                 Logger::info("Retry download complete: HTTP " + std::to_string(httpCode));
@@ -432,6 +443,32 @@ void DownloadManager::runDownloadWorker() {
         return;
     }
 
+    struct stat downloadedStat;
+    const uint64_t downloadedSize = stat(m_tempFilePath.c_str(), &downloadedStat) == 0
+        ? static_cast<uint64_t>(downloadedStat.st_size) : 0;
+    const uint64_t serverSize = responseLength > 0 ? static_cast<uint64_t>(responseLength) : 0;
+    const uint64_t expectedSize = m_activeGame.sizeBytes > 0 ? m_activeGame.sizeBytes : serverSize;
+    Logger::info("Download response: HTTP=" + std::to_string(httpCode) +
+                 " content_type=" + responseTypeText +
+                 " expected_bytes=" + std::to_string(expectedSize) +
+                 " server_bytes=" + std::to_string(serverSize) +
+                 " written_bytes=" + std::to_string(downloadedSize));
+    const bool htmlResponse = responseTypeText.find("text/html") != std::string::npos;
+    if (htmlResponse || downloadedSize == 0 ||
+        (serverSize > 0 && downloadedSize != serverSize) ||
+        (m_activeGame.sizeBytes > 0 && downloadedSize != m_activeGame.sizeBytes)) {
+        FileSystemManager::instance().removeFile(m_tempFilePath);
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_progress.state = DownloadState::FAILED;
+        m_progress.errorMessage = htmlResponse
+            ? "Google Drive returned an HTML page instead of the ROM file."
+            : "Incomplete download: expected " + std::to_string(expectedSize) +
+              " bytes, received " + std::to_string(downloadedSize) + " bytes.";
+        Logger::error(m_progress.errorMessage);
+        m_isRunning = false;
+        return;
+    }
+
     // Checksum verification
     {
         std::lock_guard<std::mutex> lock(m_mutex);
@@ -441,7 +478,17 @@ void DownloadManager::runDownloadWorker() {
     Logger::info("Download completed successfully, calculating MD5 checksum...");
     std::string computedMd5 = HashHelper::computeFileMd5(m_tempFilePath);
 
-    if (!m_activeGame.checksumSha256.empty() && !computedMd5.empty()) {
+    if (!m_activeGame.checksumSha256.empty() && computedMd5.empty()) {
+        FileSystemManager::instance().removeFile(m_tempFilePath);
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_progress.state = DownloadState::FAILED;
+        m_progress.errorMessage = "Cannot calculate checksum for downloaded file.";
+        Logger::error(m_progress.errorMessage);
+        m_isRunning = false;
+        return;
+    }
+
+    if (!m_activeGame.checksumSha256.empty()) {
         std::string expected = m_activeGame.checksumSha256;
         std::string actual = computedMd5;
         std::transform(expected.begin(), expected.end(), expected.begin(), ::tolower);

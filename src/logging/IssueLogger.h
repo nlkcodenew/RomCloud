@@ -1,12 +1,20 @@
 #pragma once
 
+#include <condition_variable>
+#include <deque>
+#include <mutex>
 #include <string>
+#include <thread>
 
 namespace RomCloud {
 
 class IssueLogger {
 public:
     static IssueLogger& instance();
+
+    void init();
+    void shutdown();
+    void enqueueError(const std::string& message);
 
     bool logError(const std::string& errorType,
                   const std::string& errorMessage,
@@ -21,6 +29,7 @@ public:
 
 private:
     IssueLogger();
+    ~IssueLogger();
     IssueLogger(const IssueLogger&) = delete;
     IssueLogger& operator=(const IssueLogger&) = delete;
 
@@ -35,10 +44,17 @@ private:
     void rememberPending(const std::string& reason,
                          const std::string& summary,
                          const std::string& details) const;
+    void workerLoop();
 
     bool m_enabled = false;
     std::string m_relayUrl;
     int m_issueCount = 0;
+    std::mutex m_queueMutex;
+    std::condition_variable m_queueCv;
+    std::deque<std::string> m_errorQueue;
+    std::thread m_worker;
+    bool m_running = false;
+    bool m_stopRequested = false;
 };
 
 } // namespace RomCloud

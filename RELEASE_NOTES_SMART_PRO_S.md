@@ -1,5 +1,6 @@
-# RomCloud 2.2.1 — TrimUI Smart Pro S
+# RomCloud 2.2.2 — TrimUI Smart Pro S
 
-- Gói phát hành được đơn giản hóa: người dùng chỉ cần tải một file ZIP theo phiên bản.
-- Cập nhật OTA sử dụng chính gói ZIP đầy đủ và kiểm tra SHA-256 trước khi cài.
-- Giữ giao diện tối ưu cho màn hình 1280x720 và báo cáo lỗi an toàn qua HTTPS relay.
+- Sửa script YouTube bị CRLF trên Linux, cải thiện fallback `yt-dlp` và hỗ trợ URL stream dài.
+- Từ chối ROM tải thiếu byte hoặc response HTML của Google Drive trước khi cài vào thư viện.
+- Ẩn game trên Drive khi máy đã có cùng game, kể cả khác tag vùng/ngôn ngữ hoặc định dạng playlist.
+- Ghi log INFO/DEBUG chi tiết và tự gửi toàn bộ `debug.log` đã lọc lên GitHub Issues theo nhiều comment.

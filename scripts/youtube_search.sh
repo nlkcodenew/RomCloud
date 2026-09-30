@@ -49,8 +49,12 @@ case "$1" in
             --playlist-start "$START" \
             --playlist-end "$END" \
             --print '%(id)s|%(title)s|%(duration)s|%(uploader)s|%(view_count)s' \
-            "ytsearch${END}:${QUERY}" 2>/dev/null
-        exit 0
+            "ytsearch${END}:${QUERY}" 2>"/tmp/romcloud_youtube_error.log"
+        STATUS=$?
+        if [ "$STATUS" -ne 0 ]; then
+            sed 's/^/YTDLP: /' /tmp/romcloud_youtube_error.log >&2
+        fi
+        exit "$STATUS"
         ;;
     url)
         VIDEO_ID="$2"
@@ -70,15 +74,16 @@ case "$1" in
             *)   FORMAT="18/22/best[height<=720]/best" ;;
         esac
 
-        # Fast direct stream URL via Android client
+        # Prefer yt-dlp's current default clients; forcing Android now requires
+        # PO tokens for many videos and commonly returns no formats.
         RAW_URLS=$("$YTDLP" -g \
             --cache-dir /tmp/yt_cache \
             --no-warnings \
             --no-check-certificates \
-            --extractor-args "youtube:player_client=android" \
             -f "$FORMAT" \
-            --socket-timeout 8 \
-            "https://www.youtube.com/watch?v=${VIDEO_ID}" 2>/dev/null)
+            --socket-timeout 12 \
+            --retries 2 \
+            "https://www.youtube.com/watch?v=${VIDEO_ID}" 2>"/tmp/romcloud_youtube_error.log")
 
         V_URL=$(echo "$RAW_URLS" | sed -n '1p')
         A_URL=$(echo "$RAW_URLS" | sed -n '2p')
@@ -92,8 +97,12 @@ case "$1" in
             exit 0
         fi
 
-        # Fallback to general best stream
-        RAW_URLS=$("$YTDLP" -g --socket-timeout 10 -f "$FORMAT" "https://www.youtube.com/watch?v=${VIDEO_ID}" 2>/dev/null)
+        # Fallback through clients that do not require an Android PO token.
+        RAW_URLS=$("$YTDLP" -g \
+            --no-check-certificates \
+            --extractor-args "youtube:player_client=web_safari,android_vr" \
+            --socket-timeout 15 --retries 2 -f "$FORMAT" \
+            "https://www.youtube.com/watch?v=${VIDEO_ID}" 2>>"/tmp/romcloud_youtube_error.log")
         V_URL=$(echo "$RAW_URLS" | sed -n '1p')
         A_URL=$(echo "$RAW_URLS" | sed -n '2p')
 
@@ -106,7 +115,8 @@ case "$1" in
             exit 0
         fi
 
-        echo "ERROR:NOSTREAM Failed to extract stream URL" >&2
+        sed 's/^/YTDLP: /' /tmp/romcloud_youtube_error.log >&2
+        echo "ERROR:NOSTREAM Failed to extract stream URL for ${VIDEO_ID}" >&2
         exit 1
         ;;
     *)

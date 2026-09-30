@@ -80,6 +80,7 @@ public:
     bool updateGameMetadata(int64_t gameId, const std::string& description, const std::string& releaseYear, const std::string& developer, const std::string& genre, const std::string& coverPath = "");
     bool moveGameToSystem(int64_t gameId, int newSystemId, const std::string& newLocalPath, const std::string& newCoverPath = "");
     bool markGameDeletedLocally(int64_t gameId);
+    bool deleteCloudGame(int64_t gameId);
     bool clearCloudGames();
 
     bool getGameCountsBySystem(int systemId, int& outLocal, int& outCloud);

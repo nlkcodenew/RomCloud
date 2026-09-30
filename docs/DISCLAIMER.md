@@ -61,4 +61,4 @@ Tôi cam kết:
 ---
 
 **GitHub: https://github.com/nlkcodenew/RomCloud**
-**Tài liệu áp dụng từ phiên bản: 2.2.1**
+**Tài liệu áp dụng từ phiên bản: 2.2.2**

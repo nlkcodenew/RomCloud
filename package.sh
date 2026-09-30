@@ -66,6 +66,11 @@ cp -r assets/player_icons/* "$STAGING_DIR/Apps/RomCloud/assets/player_icons/" 2>
 cp assets/button_icons/*.png "$STAGING_DIR/Apps/RomCloud/assets/button_icons/" 2>/dev/null || true
 cp config/settings.json config/reporting.json "$STAGING_DIR/Apps/RomCloud/config/"
 cp -f config/*.conf "$STAGING_DIR/Apps/RomCloud/config/" 2>/dev/null || true
+
+# Windows checkouts may materialize shell files as CRLF. Normalize every
+# executable script in the package or Linux will look for `/bin/sh\r`.
+find "$STAGING_DIR/Apps/RomCloud" -type f \( -name '*.sh' -o -path '*/bin/yt-dlp' \) \
+    -exec sed -i 's/\r$//' {} +
 cp -f iptv/*.m3u iptv/*.m3u8 "$STAGING_DIR/Apps/RomCloud/iptv/" 2>/dev/null || true
 cp -f iptv/sources.txt "$STAGING_DIR/Apps/RomCloud/iptv/" 2>/dev/null || true
 

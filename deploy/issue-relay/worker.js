@@ -1,6 +1,8 @@
-const MAX_REQUEST_BYTES = 70000;
+const MAX_REQUEST_BYTES = 8_000_000;
 const MAX_TITLE_CHARS = 240;
 const MAX_BODY_CHARS = 60000;
+const MAX_LOG_CHARS = 2_100_000;
+const LOG_COMMENT_CHARS = 50000;
 const DEDUPE_SECONDS = 30 * 24 * 60 * 60;
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_SECONDS = 10 * 60;
@@ -42,7 +44,27 @@ function validPayload(payload) {
     payload.title.startsWith("[device-log]") &&
     payload.title.length <= MAX_TITLE_CHARS &&
     typeof payload.body === "string" &&
-    payload.body.length <= MAX_BODY_CHARS;
+    payload.body.length <= MAX_BODY_CHARS &&
+    (payload.log === undefined ||
+      (typeof payload.log === "string" && payload.log.length <= MAX_LOG_CHARS));
+}
+
+function githubHeaders(env) {
+  return {
+    "Accept": "application/vnd.github+json",
+    "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
+    "Content-Type": "application/json",
+    "User-Agent": "romcloud-issue-relay",
+    "X-GitHub-Api-Version": "2022-11-28",
+  };
+}
+
+function splitLog(log) {
+  const chunks = [];
+  for (let offset = 0; offset < log.length; offset += LOG_COMMENT_CHARS) {
+    chunks.push(log.slice(offset, offset + LOG_COMMENT_CHARS));
+  }
+  return chunks;
 }
 
 async function rateLimitKey(request) {
@@ -98,38 +120,79 @@ async function handleReport(request, env) {
   if (!validPayload(payload)) return jsonResponse({ error: "invalid_report" }, 400);
 
   const dedupeKey = `report:${payload.fingerprint}`;
-  if (env.REPORTS) {
-    const existing = await env.REPORTS.get(dedupeKey, "json");
-    if (existing?.issue_url) return jsonResponse({ accepted: true, duplicate: true }, 200);
+  const existing = env.REPORTS ? await env.REPORTS.get(dedupeKey, "json") : null;
+  if (existing?.complete && existing?.issue_url) {
+    return jsonResponse({ accepted: true, duplicate: true, issue_url: existing.issue_url }, 200);
   }
 
-  const githubResponse = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, {
-    method: "POST",
-    headers: {
-      "Accept": "application/vnd.github+json",
-      "Authorization": `Bearer ${env.GITHUB_TOKEN}`,
-      "Content-Type": "application/json",
-      "User-Agent": "romcloud-issue-relay",
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-    body: JSON.stringify({
-      title: sanitize(payload.title).slice(0, MAX_TITLE_CHARS),
-      body: sanitize(payload.body).slice(0, MAX_BODY_CHARS),
-    }),
-  });
-  if (!githubResponse.ok) {
-    console.error("GitHub issue creation failed", githubResponse.status);
-    return jsonResponse({ error: "github_rejected_report" }, 502);
+  let issueUrl = typeof existing?.issue_url === "string" ? existing.issue_url : "";
+  let issueNumber = Number(existing?.issue_number || 0);
+  let uploadedParts = Number(existing?.uploaded_parts || 0);
+  if (!issueNumber) {
+    const githubResponse = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/issues`, {
+      method: "POST",
+      headers: githubHeaders(env),
+      body: JSON.stringify({
+        title: sanitize(payload.title).slice(0, MAX_TITLE_CHARS),
+        body: sanitize(payload.body).slice(0, MAX_BODY_CHARS),
+      }),
+    });
+    if (!githubResponse.ok) {
+      console.error("GitHub issue creation failed", githubResponse.status);
+      return jsonResponse({ error: "github_rejected_report" }, 502);
+    }
+    const issue = await githubResponse.json();
+    issueUrl = typeof issue.html_url === "string" ? issue.html_url : "";
+    issueNumber = Number(issue.number || 0);
+    if (!issueNumber) return jsonResponse({ error: "github_invalid_response" }, 502);
+    if (env.REPORTS) {
+      await env.REPORTS.put(dedupeKey, JSON.stringify({
+        issue_url: issueUrl,
+        issue_number: issueNumber,
+        uploaded_parts: 0,
+        complete: false,
+      }), { expirationTtl: DEDUPE_SECONDS });
+    }
   }
 
-  const issue = await githubResponse.json();
-  const issueUrl = typeof issue.html_url === "string" ? issue.html_url : "";
+  const sanitizedLog = sanitize(payload.log || "");
+  const logChunks = splitLog(sanitizedLog);
+  for (let index = uploadedParts; index < logChunks.length; index += 1) {
+    const commentResponse = await fetch(
+      `https://api.github.com/repos/${env.GITHUB_REPO}/issues/${issueNumber}/comments`,
+      {
+        method: "POST",
+        headers: githubHeaders(env),
+        body: JSON.stringify({
+          body: `### debug.log (${index + 1}/${logChunks.length})\n\n\`\`\`text\n${logChunks[index]}\n\`\`\``,
+        }),
+      },
+    );
+    if (!commentResponse.ok) {
+      console.error("GitHub log comment failed", commentResponse.status, index + 1);
+      return jsonResponse({ error: "github_rejected_log", issue_url: issueUrl }, 502);
+    }
+    uploadedParts = index + 1;
+    if (env.REPORTS) {
+      await env.REPORTS.put(dedupeKey, JSON.stringify({
+        issue_url: issueUrl,
+        issue_number: issueNumber,
+        uploaded_parts: uploadedParts,
+        complete: false,
+      }), { expirationTtl: DEDUPE_SECONDS });
+    }
+  }
   if (env.REPORTS && issueUrl) {
-    await env.REPORTS.put(dedupeKey, JSON.stringify({ issue_url: issueUrl }), {
+    await env.REPORTS.put(dedupeKey, JSON.stringify({
+      issue_url: issueUrl,
+      issue_number: issueNumber,
+      uploaded_parts: logChunks.length,
+      complete: true,
+    }), {
       expirationTtl: DEDUPE_SECONDS,
     });
   }
-  return jsonResponse({ accepted: true }, 201);
+  return jsonResponse({ accepted: true, issue_url: issueUrl, log_parts: logChunks.length }, 201);
 }
 
 export default {

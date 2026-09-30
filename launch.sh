@@ -133,7 +133,8 @@ install_pending_ota() {
 install_pending_ota
 
 # Ensure binary is executable
-chmod +x ./bin/RomCloud 2>/dev/null
+sed -i 's/\r$//' ./scripts/*.sh ./bin/yt-dlp 2>/dev/null || true
+chmod +x ./bin/RomCloud ./bin/yt-dlp ./bin/yt-dlp-glibc ./scripts/*.sh 2>/dev/null
 
 # Execution loop supporting in-app restart after OTA update (exit code 42)
 while true; do
