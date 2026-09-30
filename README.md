@@ -66,6 +66,10 @@ Build the Brick Pro target with `./build.sh`. Build and package the dedicated
 Smart Pro S channel with `./release-smart-pro-s.sh`; its tag format is
 `smart-pro-s-vX.Y.Z`.
 
+Each device release follows the same compact layout as trimui-chiaki-ng:
+`manifest.json`, one versioned installation ZIP, and its `.zip.sha256` file.
+Users only need to download and extract the versioned ZIP.
+
 The diagnostics endpoint is configured in `config/reporting.json`. The GitHub
 token belongs only in the Cloudflare Worker secret described in
 `deploy/issue-relay/README.md`, never in the app or release ZIP.

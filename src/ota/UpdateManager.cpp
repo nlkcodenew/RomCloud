@@ -4,6 +4,7 @@
 #include "../logging/Logger.h"
 #include "../network/HttpClient.h"
 #include "../network/JsonHelper.h"
+#include "../platform/DeviceIdentity.h"
 
 #include <curl/curl.h>
 #include <SDL2/SDL.h>
@@ -13,6 +14,7 @@
 #include <vector>
 #include <fstream>
 #include <algorithm>
+#include <cstdio>
 
 namespace RomCloud {
 
@@ -25,6 +27,17 @@ UpdateManager::~UpdateManager() { shutdown(); }
 
 bool UpdateManager::init() {
   std::lock_guard<std::mutex> lock(m_mutex);
+  const std::string appRoot = AppConfig::instance().getAppRoot();
+  const std::string pendingLauncher = appRoot + "/launch.sh.new";
+  const std::string launcher = appRoot + "/launch.sh";
+  if (access(pendingLauncher.c_str(), F_OK) == 0) {
+    if (rename(pendingLauncher.c_str(), launcher.c_str()) == 0) {
+      chmod(launcher.c_str(), 0755);
+      Logger::info("Activated updated launcher");
+    } else {
+      Logger::warn("Could not activate pending launcher");
+    }
+  }
   m_progress.state = UpdateState::IDLE;
   m_hasUpdate = false;
   Logger::info("UpdateManager initialized. Current version: v" + std::string(APP_VERSION));
@@ -121,13 +134,14 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
   std::string changelog = "";
   std::string relDate = "";
   std::string binUrl = "";
+  std::string packageSha256 = "";
   std::string bundleUrl = "";
   std::string osBundleUrl = "";
 
 #if defined(ROMCLOUD_TARGET_SMART_PRO_S)
   remoteVer = JsonHelper::extractString(mResp.body, "SMART_PRO_S_version");
-  binUrl = JsonHelper::extractString(mResp.body, "SMART_PRO_S_binary_url");
-  bundleUrl = JsonHelper::extractString(mResp.body, "SMART_PRO_S_bundle_url");
+  binUrl = JsonHelper::extractString(mResp.body, "SMART_PRO_S_package_url");
+  packageSha256 = JsonHelper::extractString(mResp.body, "SMART_PRO_S_package_sha256");
 #endif
 
   if (mResp.success && !mResp.body.empty() && mResp.statusCode == 200) {
@@ -182,10 +196,10 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
     iconUrl = JsonHelper::extractString(mResp.body, "icon_url");
 
 #if !defined(ROMCLOUD_TARGET_SMART_PRO_S)
-    binUrl = JsonHelper::extractString(mResp.body, "binary_url");
+    binUrl = JsonHelper::extractString(mResp.body, "package_url");
     if (binUrl.empty())
       binUrl = JsonHelper::extractString(mResp.body, "download_url");
-    bundleUrl = JsonHelper::extractString(mResp.body, "bundle_url");
+    packageSha256 = JsonHelper::extractString(mResp.body, "package_sha256");
 #endif
     osBundleUrl = JsonHelper::extractString(mResp.body, "os_bundle_url");
 
@@ -238,12 +252,11 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
           std::string name = JsonHelper::extractString(asset, "name");
           std::string url = JsonHelper::extractString(asset, "browser_download_url");
 
-          if (name == RELEASE_BINARY_NAME || name == "RomCloud" || name == "RomCloud.bin") {
+          const std::string packageName = "RomCloud-" + std::string(RELEASE_DEVICE_SLUG) + "-v" + remoteVer + ".zip";
+          if (name == packageName) {
             binUrl = url;
           } else if (name == "icon.png" || name == "APP.png") {
             iconUrl = url;
-          } else if (name == RELEASE_BUNDLE_NAME || name == "mpv_bundle.zip" || name == "mpv_bundle-" + osType + ".zip") {
-            bundleUrl = url;
           } else if (name.find("_bundle.zip") != std::string::npos) {
             // Check OS-specific bundle
             std::string lowerOsKey = osKey;
@@ -257,7 +270,8 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
         }
         if (binUrl.empty()) {
           binUrl = "https://github.com/" + std::string(GITHUB_REPO) +
-                   "/releases/download/" + std::string(RELEASE_TAG_PREFIX) + remoteVer + "/" + RELEASE_BINARY_NAME;
+                   "/releases/download/" + std::string(RELEASE_TAG_PREFIX) + remoteVer +
+                   "/RomCloud-" + RELEASE_DEVICE_SLUG + "-v" + remoteVer + ".zip";
         }
       }
     }
@@ -271,11 +285,8 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
   // Build default URLs if not found
   if (binUrl.empty()) {
     binUrl = "https://github.com/" + std::string(GITHUB_REPO) +
-              "/releases/download/" + std::string(RELEASE_TAG_PREFIX) + remoteVer + "/" + RELEASE_BINARY_NAME;
-  }
-  if (bundleUrl.empty()) {
-    bundleUrl = "https://github.com/" + std::string(GITHUB_REPO) +
-                "/releases/download/" + std::string(RELEASE_TAG_PREFIX) + remoteVer + "/" + RELEASE_BUNDLE_NAME;
+              "/releases/download/" + std::string(RELEASE_TAG_PREFIX) + remoteVer +
+              "/RomCloud-" + RELEASE_DEVICE_SLUG + "-v" + remoteVer + ".zip";
   }
   if (iconUrl.empty()) {
     iconUrl = "https://raw.githubusercontent.com/" + std::string(GITHUB_REPO) + "/main/icon.png";
@@ -289,6 +300,7 @@ bool UpdateManager::checkForUpdatesSync(UpdateInfo &outInfo) {
 
   outInfo.remoteVersion = remoteVer;
   outInfo.downloadUrl = binUrl;
+  outInfo.packageSha256 = packageSha256;
   outInfo.iconUrl = iconUrl;
   outInfo.bundleUrl = bundleUrl;
   outInfo.osBundleUrl = osBundleUrl;
@@ -403,48 +415,61 @@ bool UpdateManager::checkAndInstallDependencies() {
     return true;
   }
 
-  Logger::info("Missing " + std::to_string(missing.size()) + " dependencies, will install...");
+  Logger::info("Missing " + std::to_string(missing.size()) +
+               " dependencies; downloading the complete package...");
 
-  std::string appRoot = AppConfig::instance().getAppRoot();
-  std::string bundleUrl = "https://github.com/" + std::string(GITHUB_REPO) +
-                          "/releases/download/v" + std::string(APP_VERSION) + "/mpv_bundle.zip";
+  UpdateInfo info;
+  checkForUpdatesSync(info);
+  if (info.downloadUrl.empty() || info.packageSha256.size() != 64) {
+    Logger::error("Cannot obtain the current package metadata");
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_progress.state = UpdateState::FAILED;
+    m_progress.errorMessage = "Không thể lấy thông tin gói cài đặt.";
+    return false;
+  }
 
-  std::string bundlePath = appRoot + "/mpv_bundle.zip";
+  std::string packagePath = AppConfig::instance().getAppRoot() + "/RomCloud-update.zip";
 
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_progress.state = UpdateState::DOWNLOADING_DEPS;
-    m_progress.currentStep = "Downloading media bundle...";
+    m_progress.currentStep = "Đang tải lại gói RomCloud đầy đủ...";
   }
 
-  // Download bundle
-  if (!downloadFile(bundleUrl, bundlePath, nullptr, true)) {
-    Logger::error("Failed to download media bundle from: " + bundleUrl);
+  if (!downloadFile(info.downloadUrl, packagePath, nullptr, true)) {
+    Logger::error("Failed to download complete package from: " + info.downloadUrl);
     std::lock_guard<std::mutex> lock(m_mutex);
     m_progress.state = UpdateState::FAILED;
-    m_progress.errorMessage = "Cannot download media bundle";
+    m_progress.errorMessage = "Không thể tải gói cài đặt đầy đủ.";
+    return false;
+  }
+
+  std::string actualSha256 = DeviceIdentity::sha256File(packagePath);
+  std::transform(actualSha256.begin(), actualSha256.end(), actualSha256.begin(), ::tolower);
+  std::transform(info.packageSha256.begin(), info.packageSha256.end(), info.packageSha256.begin(), ::tolower);
+  if (actualSha256 != info.packageSha256) {
+    unlink(packagePath.c_str());
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_progress.state = UpdateState::FAILED;
+    m_progress.errorMessage = "SHA-256 của gói cài đặt không khớp.";
+    return false;
+  }
+
+  if (!stagePackageInstall(packagePath)) {
+    unlink(packagePath.c_str());
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_progress.state = UpdateState::FAILED;
+    m_progress.errorMessage = "Không thể chuẩn bị gói cài đặt.";
     return false;
   }
 
   {
     std::lock_guard<std::mutex> lock(m_mutex);
-    m_progress.state = UpdateState::INSTALLING_DEPS;
-    m_progress.currentStep = "Installing media bundle...";
+    m_progress.state = UpdateState::COMPLETED;
+    m_progress.currentStep = "Gói đã sẵn sàng. Khởi động lại để cài đặt.";
+    m_progress.progressPct = 100.0;
   }
-
-  // Install bundle
-  if (!installMpvsBundle(bundlePath)) {
-    Logger::error("Failed to install media bundle");
-    std::lock_guard<std::mutex> lock(m_mutex);
-    m_progress.state = UpdateState::FAILED;
-    m_progress.errorMessage = "Cannot install media bundle";
-    return false;
-  }
-
-  // Clean up
-  unlink(bundlePath.c_str());
-
-  Logger::info("Dependencies installed successfully!");
+  Logger::info("Complete package verified and ready for restart");
   return true;
 }
 
@@ -510,6 +535,71 @@ bool UpdateManager::downloadFile(const std::string& url, const std::string& dest
     }
   }
 
+  return true;
+}
+
+bool UpdateManager::stagePackageInstall(const std::string& zipPath) {
+  const std::string appRoot = AppConfig::instance().getAppRoot();
+  const std::string stagingRoot = appRoot + "/.ota-update";
+  const std::string packageRoot = stagingRoot + "/Apps/RomCloud";
+  const std::string stagedBinary = packageRoot + "/bin/RomCloud";
+  const std::string stagedLauncher = packageRoot + "/launch.sh";
+  const std::string pendingBinary = appRoot + "/bin/RomCloud.new";
+  const std::string pendingLauncher = appRoot + "/launch.sh.new";
+
+  system(("rm -rf '" + stagingRoot + "'").c_str());
+  mkdir(stagingRoot.c_str(), 0755);
+  std::string command = "unzip -oq '" + zipPath + "' -d '" + stagingRoot + "' 2>/dev/null";
+  int result = system(command.c_str());
+  if (result != 0) {
+    command = "busybox unzip -o '" + zipPath + "' -d '" + stagingRoot + "' 2>/dev/null";
+    result = system(command.c_str());
+  }
+
+  struct stat binaryStat{};
+  if (result != 0 || stat(stagedBinary.c_str(), &binaryStat) != 0 || binaryStat.st_size < 1000000) {
+    system(("rm -rf '" + stagingRoot + "'").c_str());
+    return false;
+  }
+
+  unlink((packageRoot + "/config/settings.json").c_str());
+  unlink(pendingLauncher.c_str());
+  if (rename(stagedLauncher.c_str(), pendingLauncher.c_str()) != 0) {
+    system(("rm -rf '" + stagingRoot + "'").c_str());
+    return false;
+  }
+  unlink(pendingBinary.c_str());
+  if (rename(stagedBinary.c_str(), pendingBinary.c_str()) != 0) {
+    std::ifstream source(stagedBinary, std::ios::binary);
+    std::ofstream destination(pendingBinary, std::ios::binary | std::ios::trunc);
+    if (!source.is_open() || !destination.is_open()) {
+      unlink(pendingBinary.c_str());
+      system(("rm -rf '" + stagingRoot + "'").c_str());
+      return false;
+    }
+    destination << source.rdbuf();
+    destination.close();
+    struct stat pendingStat{};
+    if (stat(pendingBinary.c_str(), &pendingStat) != 0 || pendingStat.st_size != binaryStat.st_size) {
+      unlink(pendingBinary.c_str());
+      system(("rm -rf '" + stagingRoot + "'").c_str());
+      return false;
+    }
+  }
+
+  command = "cp -Rf '" + packageRoot + "/.' '" + appRoot + "/'";
+  if (system(command.c_str()) != 0) {
+    unlink(pendingBinary.c_str());
+    system(("rm -rf '" + stagingRoot + "'").c_str());
+    return false;
+  }
+
+  chmod(pendingBinary.c_str(), 0755);
+  chmod(pendingLauncher.c_str(), 0755);
+  system(("chmod +x '" + appRoot + "/bin/'* '" + appRoot + "/scripts/'*.sh 2>/dev/null").c_str());
+  system(("rm -rf '" + stagingRoot + "'").c_str());
+  unlink(zipPath.c_str());
+  sync();
   return true;
 }
 
@@ -658,11 +748,10 @@ void UpdateManager::cancelUpdate() {
 void UpdateManager::runDownloadWorker(UpdateInfo info) {
   Logger::info("Starting OTA update: v" + info.remoteVersion + " for " + info.osType);
 
-  std::string binDir = AppConfig::instance().getBinDir();
-  std::string newBinPath = binDir + "/RomCloud.new";
-  std::string finalBinPath = binDir + "/RomCloud";
+  std::string appRoot = AppConfig::instance().getAppRoot();
+  std::string packagePath = appRoot + "/RomCloud-update.zip";
 
-  // 1. Download main app binary
+  // 1. Download the complete installation package
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_progress.state = UpdateState::DOWNLOADING;
@@ -674,7 +763,7 @@ void UpdateManager::runDownloadWorker(UpdateInfo info) {
   }
 
   uint64_t downloadedSize = 0;
-  if (!downloadFile(info.downloadUrl, newBinPath, &downloadedSize, true)) {
+  if (!downloadFile(info.downloadUrl, packagePath, &downloadedSize, true)) {
     if (m_cancelRequested) {
       std::lock_guard<std::mutex> lock(m_mutex);
       m_progress.state = UpdateState::IDLE;
@@ -689,9 +778,8 @@ void UpdateManager::runDownloadWorker(UpdateInfo info) {
     return;
   }
 
-  // Verify binary size
   if (downloadedSize < 1000000) {
-    unlink(newBinPath.c_str());
+    unlink(packagePath.c_str());
     std::lock_guard<std::mutex> lock(m_mutex);
     m_progress.state = UpdateState::FAILED;
     m_progress.errorMessage = "Tập tin tải về quá nhỏ hoặc không hợp lệ.";
@@ -699,123 +787,50 @@ void UpdateManager::runDownloadWorker(UpdateInfo info) {
     return;
   }
 
-  chmod(newBinPath.c_str(), 0755);
-  sync();
-
-  // 2. Replace binary
+  // 2. Verify package SHA-256 before deferring installation to launch.sh
   {
     std::lock_guard<std::mutex> lock(m_mutex);
     m_progress.state = UpdateState::INSTALLING;
-    m_progress.currentStep = "Đang cài đặt và thay thế file thực thi RomCloud...";
+    m_progress.state = UpdateState::VERIFYING;
+    m_progress.currentStep = "Đang kiểm tra SHA-256 của gói cập nhật...";
     m_progress.progressPct = 100.0;
     m_progress.speedKBps = 0.0;
   }
 
-  bool replaced = false;
-  std::string oldBinPath = binDir + "/RomCloud.old";
-  unlink(oldBinPath.c_str());
-
-  if (rename(finalBinPath.c_str(), oldBinPath.c_str()) == 0) {
-    if (rename(newBinPath.c_str(), finalBinPath.c_str()) == 0) {
-      chmod(finalBinPath.c_str(), 0755);
-      unlink(oldBinPath.c_str());
-      replaced = true;
-      Logger::info("Binary replaced successfully");
-    } else {
-      rename(oldBinPath.c_str(), finalBinPath.c_str());
-    }
+  if (info.packageSha256.size() != 64) {
+    unlink(packagePath.c_str());
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_progress.state = UpdateState::FAILED;
+    m_progress.errorMessage = "Manifest cập nhật thiếu SHA-256 hợp lệ.";
+    m_isRunning = false;
+    return;
+  }
+  std::string actualSha256 = DeviceIdentity::sha256File(packagePath);
+  std::transform(actualSha256.begin(), actualSha256.end(), actualSha256.begin(), ::tolower);
+  std::transform(info.packageSha256.begin(), info.packageSha256.end(), info.packageSha256.begin(), ::tolower);
+  if (actualSha256 != info.packageSha256) {
+    unlink(packagePath.c_str());
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_progress.state = UpdateState::FAILED;
+    m_progress.errorMessage = "SHA-256 của gói cập nhật không khớp.";
+    m_isRunning = false;
+    return;
+  }
+  {
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_progress.state = UpdateState::INSTALLING;
+    m_progress.currentStep = "Đang chuẩn bị gói cập nhật để khởi động lại...";
+  }
+  if (!stagePackageInstall(packagePath)) {
+    unlink(packagePath.c_str());
+    std::lock_guard<std::mutex> lock(m_mutex);
+    m_progress.state = UpdateState::FAILED;
+    m_progress.errorMessage = "Không thể chuẩn bị gói cập nhật.";
+    m_isRunning = false;
+    return;
   }
 
-  if (!replaced) {
-    // FAT32 workaround - create install script
-    std::string scriptPath = binDir + "/ota_install.sh";
-    FILE* script = fopen(scriptPath.c_str(), "w");
-    if (script) {
-      fprintf(script, "#!/bin/sh\n");
-      fprintf(script, "mv -f '%s' '%s' 2>/dev/null; ", newBinPath.c_str(), finalBinPath.c_str());
-      fprintf(script, "chmod +x '%s'; ", finalBinPath.c_str());
-      fprintf(script, "rm -f '%s'\n", scriptPath.c_str());
-      fclose(script);
-      chmod(scriptPath.c_str(), 0755);
-    }
-    Logger::info("Binary replacement deferred to next boot");
-  }
-
-  sync();
-
-  // 3. Download and update official app icon
-  if (!info.iconUrl.empty()) {
-    std::string appRoot = AppConfig::instance().getAppRoot();
-    std::string newIconPath = appRoot + "/icon.png.new";
-    std::string finalIconPath = appRoot + "/icon.png";
-    std::string appIconPath = appRoot + "/assets/apps_icons/APP.png";
-    std::string assetsIconPath = appRoot + "/assets/icon.png";
-
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      m_progress.state = UpdateState::INSTALLING;
-      m_progress.currentStep = "Đang cập nhật biểu tượng ứng dụng...";
-    }
-
-    uint64_t iconSize = 0;
-    if (downloadFile(info.iconUrl, newIconPath, &iconSize, false) && iconSize > 1000) {
-      chmod(newIconPath.c_str(), 0644);
-      unlink(finalIconPath.c_str());
-      if (rename(newIconPath.c_str(), finalIconPath.c_str()) == 0) {
-        std::ifstream src(finalIconPath, std::ios::binary);
-        if (src) {
-          std::ofstream dst1(appIconPath, std::ios::binary | std::ios::trunc);
-          if (dst1) dst1 << src.rdbuf();
-          src.clear();
-          src.seekg(0, std::ios::beg);
-          std::ofstream dst2(assetsIconPath, std::ios::binary | std::ios::trunc);
-          if (dst2) dst2 << src.rdbuf();
-        }
-        Logger::info("App icon updated successfully via OTA (" + std::to_string(iconSize) + " bytes)");
-      } else {
-        // FAT32 deferred: keep newIconPath so launch.sh can copy it
-        Logger::info("Icon rename deferred to launch.sh");
-      }
-    } else {
-      unlink(newIconPath.c_str());
-      Logger::warn("Failed to download or verify app icon");
-    }
-  }
-
-  // 4. Check and install dependencies (mpv, codecs)
-  if (!downloadAndInstallDependencies(info)) {
-    Logger::warn("Some dependencies may be missing - app may not work fully");
-  }
-
-  // 5. Check and install OS-specific bundle if available
-  if (!info.osBundleUrl.empty()) {
-    std::string appRoot = AppConfig::instance().getAppRoot();
-    std::string osBundlePath = appRoot + "/os_bundle.zip";
-
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      m_progress.state = UpdateState::DOWNLOADING_DEPS;
-      m_progress.currentStep = "Đang tải gói cấu hình " + info.osType + "...";
-      m_progress.bytesDownloaded = 0;
-      m_progress.totalBytes = 0;
-      m_progress.progressPct = 0.0;
-      m_progress.speedKBps = 0.0;
-    }
-
-    if (downloadFile(info.osBundleUrl, osBundlePath, nullptr, true)) {
-      {
-        std::lock_guard<std::mutex> lock(m_mutex);
-        m_progress.state = UpdateState::INSTALLING_DEPS;
-        m_progress.currentStep = "Đang cài đặt gói tối ưu " + info.osType + "...";
-        m_progress.progressPct = 100.0;
-        m_progress.speedKBps = 0.0;
-      }
-      installOsBundle(osBundlePath, info.osType);
-      unlink(osBundlePath.c_str());
-    }
-  }
-
-  Logger::info("OTA update completed!");
+  Logger::info("OTA package verified and ready for restart");
 
   {
     std::lock_guard<std::mutex> lock(m_mutex);

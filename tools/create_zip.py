@@ -19,7 +19,10 @@ def add_path(archive, source, arcname):
             for filename in files:
                 file_path = os.path.join(root, filename)
                 relative_path = os.path.relpath(file_path, os.path.dirname(source))
-                add_file(archive, file_path, relative_path)
+                try:
+                    add_file(archive, file_path, relative_path)
+                except FileNotFoundError:
+                    continue
     else:
         add_file(archive, source, arcname)
 

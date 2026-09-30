@@ -10,5 +10,5 @@ TAG="smart-pro-s-v${VERSION}"
 ./build-smart-pro-s.sh
 TARGET_DEVICE=smart-pro-s ./package.sh
 
-echo "Smart Pro S release artifacts are ready in dist/."
+echo "Smart Pro S release artifacts are ready in dist/smart-pro-s/."
 echo "Recommended tag: ${TAG}"

@@ -65,9 +65,9 @@ mkdir -p bin
     -lpthread \
     -ldl \
     -lm \
-    -o bin/RomCloud
+    -o bin/RomCloud-smart-pro-s
 
-"$SDK_ROOT/host/bin/aarch64-none-linux-gnu-strip" --strip-unneeded bin/RomCloud
-echo "=== Build Successful: bin/RomCloud ==="
-ls -lh bin/RomCloud
-file bin/RomCloud
+"$SDK_ROOT/host/bin/aarch64-none-linux-gnu-strip" --strip-unneeded bin/RomCloud-smart-pro-s
+echo "=== Build Successful: bin/RomCloud-smart-pro-s ==="
+ls -lh bin/RomCloud-smart-pro-s
+file bin/RomCloud-smart-pro-s

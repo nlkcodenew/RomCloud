@@ -38,6 +38,106 @@ uint32_t rotateRight(uint32_t value, uint32_t bits) {
     return (value >> bits) | (value << (32U - bits));
 }
 
+class Sha256Hasher {
+public:
+    void update(const uint8_t* data, size_t length) {
+        m_totalBytes += length;
+        while (length > 0) {
+            const size_t available = m_buffer.size() - m_bufferSize;
+            const size_t copyLength = std::min(length, available);
+            std::copy(data, data + copyLength, m_buffer.begin() + m_bufferSize);
+            m_bufferSize += copyLength;
+            data += copyLength;
+            length -= copyLength;
+            if (m_bufferSize == m_buffer.size()) {
+                transform(m_buffer.data());
+                m_bufferSize = 0;
+            }
+        }
+    }
+
+    std::string finish() {
+        const uint64_t bitLength = m_totalBytes * 8U;
+        const uint8_t marker = 0x80U;
+        update(&marker, 1U);
+        const uint8_t zero = 0U;
+        while (m_bufferSize != 56U) update(&zero, 1U);
+
+        std::array<uint8_t, 8> encodedLength{};
+        for (size_t index = 0; index < encodedLength.size(); ++index) {
+            encodedLength[index] = static_cast<uint8_t>(bitLength >> ((7U - index) * 8U));
+        }
+        update(encodedLength.data(), encodedLength.size());
+
+        std::ostringstream output;
+        output << std::hex << std::setfill('0');
+        for (uint32_t word : m_hash) output << std::setw(8) << word;
+        return output.str();
+    }
+
+private:
+    void transform(const uint8_t* block) {
+        std::array<uint32_t, 64> words{};
+        for (size_t index = 0; index < 16U; ++index) {
+            const size_t position = index * 4U;
+            words[index] = (static_cast<uint32_t>(block[position]) << 24U) |
+                           (static_cast<uint32_t>(block[position + 1U]) << 16U) |
+                           (static_cast<uint32_t>(block[position + 2U]) << 8U) |
+                           static_cast<uint32_t>(block[position + 3U]);
+        }
+        for (size_t index = 16U; index < words.size(); ++index) {
+            const uint32_t sigma0 = rotateRight(words[index - 15U], 7U) ^
+                                    rotateRight(words[index - 15U], 18U) ^
+                                    (words[index - 15U] >> 3U);
+            const uint32_t sigma1 = rotateRight(words[index - 2U], 17U) ^
+                                    rotateRight(words[index - 2U], 19U) ^
+                                    (words[index - 2U] >> 10U);
+            words[index] = words[index - 16U] + sigma0 + words[index - 7U] + sigma1;
+        }
+
+        uint32_t a = m_hash[0];
+        uint32_t b = m_hash[1];
+        uint32_t c = m_hash[2];
+        uint32_t d = m_hash[3];
+        uint32_t e = m_hash[4];
+        uint32_t f = m_hash[5];
+        uint32_t g = m_hash[6];
+        uint32_t h = m_hash[7];
+        for (size_t index = 0; index < words.size(); ++index) {
+            const uint32_t sum1 = rotateRight(e, 6U) ^ rotateRight(e, 11U) ^ rotateRight(e, 25U);
+            const uint32_t choice = (e & f) ^ ((~e) & g);
+            const uint32_t temporary1 = h + sum1 + choice + SHA256_CONSTANTS[index] + words[index];
+            const uint32_t sum0 = rotateRight(a, 2U) ^ rotateRight(a, 13U) ^ rotateRight(a, 22U);
+            const uint32_t majority = (a & b) ^ (a & c) ^ (b & c);
+            const uint32_t temporary2 = sum0 + majority;
+            h = g;
+            g = f;
+            f = e;
+            e = d + temporary1;
+            d = c;
+            c = b;
+            b = a;
+            a = temporary1 + temporary2;
+        }
+        m_hash[0] += a;
+        m_hash[1] += b;
+        m_hash[2] += c;
+        m_hash[3] += d;
+        m_hash[4] += e;
+        m_hash[5] += f;
+        m_hash[6] += g;
+        m_hash[7] += h;
+    }
+
+    std::array<uint32_t, 8> m_hash = {
+        0x6a09e667U, 0xbb67ae85U, 0x3c6ef372U, 0xa54ff53aU,
+        0x510e527fU, 0x9b05688cU, 0x1f83d9abU, 0x5be0cd19U
+    };
+    std::array<uint8_t, 64> m_buffer{};
+    size_t m_bufferSize = 0;
+    uint64_t m_totalBytes = 0;
+};
+
 std::string trim(std::string value) {
     value.erase(std::remove(value.begin(), value.end(), '\0'), value.end());
     const auto first = value.find_first_not_of(" \t\r\n");
@@ -90,79 +190,25 @@ std::string DeviceIdentity::readIdentityFile(const std::string& path) {
 }
 
 std::string DeviceIdentity::sha256Hex(const std::string& value) {
-    std::vector<uint8_t> message(value.begin(), value.end());
-    const uint64_t bitLength = static_cast<uint64_t>(message.size()) * 8U;
-    message.push_back(0x80U);
-    while ((message.size() % 64U) != 56U) message.push_back(0U);
-    for (int shift = 56; shift >= 0; shift -= 8) {
-        message.push_back(static_cast<uint8_t>(bitLength >> shift));
+    Sha256Hasher hasher;
+    hasher.update(reinterpret_cast<const uint8_t*>(value.data()), value.size());
+    return hasher.finish();
+}
+
+std::string DeviceIdentity::sha256File(const std::string& path) {
+    std::ifstream file(path, std::ios::binary);
+    if (!file.is_open()) return "";
+    Sha256Hasher hasher;
+    std::array<char, 64 * 1024> buffer{};
+    while (file) {
+        file.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const std::streamsize bytesRead = file.gcount();
+        if (bytesRead > 0) {
+            hasher.update(reinterpret_cast<const uint8_t*>(buffer.data()),
+                          static_cast<size_t>(bytesRead));
+        }
     }
-
-    std::array<uint32_t, 8> hash = {
-        0x6a09e667U, 0xbb67ae85U, 0x3c6ef372U, 0xa54ff53aU,
-        0x510e527fU, 0x9b05688cU, 0x1f83d9abU, 0x5be0cd19U
-    };
-
-    for (size_t offset = 0; offset < message.size(); offset += 64U) {
-        std::array<uint32_t, 64> words{};
-        for (size_t index = 0; index < 16U; ++index) {
-            const size_t position = offset + index * 4U;
-            words[index] = (static_cast<uint32_t>(message[position]) << 24U) |
-                           (static_cast<uint32_t>(message[position + 1U]) << 16U) |
-                           (static_cast<uint32_t>(message[position + 2U]) << 8U) |
-                           static_cast<uint32_t>(message[position + 3U]);
-        }
-        for (size_t index = 16U; index < words.size(); ++index) {
-            const uint32_t sigma0 = rotateRight(words[index - 15U], 7U) ^
-                                    rotateRight(words[index - 15U], 18U) ^
-                                    (words[index - 15U] >> 3U);
-            const uint32_t sigma1 = rotateRight(words[index - 2U], 17U) ^
-                                    rotateRight(words[index - 2U], 19U) ^
-                                    (words[index - 2U] >> 10U);
-            words[index] = words[index - 16U] + sigma0 + words[index - 7U] + sigma1;
-        }
-
-        uint32_t a = hash[0];
-        uint32_t b = hash[1];
-        uint32_t c = hash[2];
-        uint32_t d = hash[3];
-        uint32_t e = hash[4];
-        uint32_t f = hash[5];
-        uint32_t g = hash[6];
-        uint32_t h = hash[7];
-
-        for (size_t index = 0; index < words.size(); ++index) {
-            const uint32_t sum1 = rotateRight(e, 6U) ^ rotateRight(e, 11U) ^ rotateRight(e, 25U);
-            const uint32_t choice = (e & f) ^ ((~e) & g);
-            const uint32_t temporary1 = h + sum1 + choice + SHA256_CONSTANTS[index] + words[index];
-            const uint32_t sum0 = rotateRight(a, 2U) ^ rotateRight(a, 13U) ^ rotateRight(a, 22U);
-            const uint32_t majority = (a & b) ^ (a & c) ^ (b & c);
-            const uint32_t temporary2 = sum0 + majority;
-
-            h = g;
-            g = f;
-            f = e;
-            e = d + temporary1;
-            d = c;
-            c = b;
-            b = a;
-            a = temporary1 + temporary2;
-        }
-
-        hash[0] += a;
-        hash[1] += b;
-        hash[2] += c;
-        hash[3] += d;
-        hash[4] += e;
-        hash[5] += f;
-        hash[6] += g;
-        hash[7] += h;
-    }
-
-    std::ostringstream output;
-    output << std::hex << std::setfill('0');
-    for (uint32_t word : hash) output << std::setw(8) << word;
-    return output.str();
+    return file.eof() ? hasher.finish() : "";
 }
 
 std::string DeviceIdentity::hardwareId() {

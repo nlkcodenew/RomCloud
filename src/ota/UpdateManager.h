@@ -10,15 +10,13 @@ namespace RomCloud {
 constexpr const char* GITHUB_REPO = "nlkcodenew/RomCloud";
 constexpr const char* VERSION_MANIFEST_URL = "https://raw.githubusercontent.com/nlkcodenew/RomCloud/main/version.json";
 #if defined(ROMCLOUD_TARGET_SMART_PRO_S)
-constexpr const char* APP_VERSION = "2.2.0";
+constexpr const char* APP_VERSION = "2.2.1";
 constexpr const char* RELEASE_TAG_PREFIX = "smart-pro-s-v";
-constexpr const char* RELEASE_BINARY_NAME = "RomCloud-smart-pro-s";
-constexpr const char* RELEASE_BUNDLE_NAME = "mpv_bundle-smart-pro-s.zip";
+constexpr const char* RELEASE_DEVICE_SLUG = "smart-pro-s";
 #else
-constexpr const char* APP_VERSION = "2.2.0";
+constexpr const char* APP_VERSION = "2.2.1";
 constexpr const char* RELEASE_TAG_PREFIX = "brick-pro-v";
-constexpr const char* RELEASE_BINARY_NAME = "RomCloud-brick-pro";
-constexpr const char* RELEASE_BUNDLE_NAME = "mpv_bundle-brick-pro.zip";
+constexpr const char* RELEASE_DEVICE_SLUG = "brick-pro";
 #endif
 
 enum class UpdateState {
@@ -38,6 +36,7 @@ enum class UpdateState {
 struct UpdateInfo {
     std::string remoteVersion;
     std::string downloadUrl;
+    std::string packageSha256;
     std::string iconUrl;          // Official app icon URL
     std::string bundleUrl;        // mpv/codecs bundle
     std::string osBundleUrl;      // OS-specific dependencies
@@ -107,6 +106,7 @@ private:
     void runDownloadWorker(UpdateInfo info);
     bool downloadAndInstallDependencies(const UpdateInfo& info);
     bool downloadFile(const std::string& url, const std::string& destPath, uint64_t* outSize = nullptr, bool trackProgress = false);
+    bool stagePackageInstall(const std::string& zipPath);
     bool installMpvsBundle(const std::string& zipPath);
     bool installOsBundle(const std::string& zipPath, const std::string& osType);
     static int xferCallback(void* clientp, int64_t dltotal, int64_t dlnow, int64_t ultotal, int64_t ulnow);

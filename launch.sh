@@ -28,12 +28,44 @@ if [ -f "./config.json" ]; then
 fi
 
 install_pending_ota() {
+    PACKAGE_ZIP="./RomCloud-update.zip"
     NEW_BIN="./bin/RomCloud.new"
     TARGET_BIN="./bin/RomCloud"
     HELPER_SCRIPT="./bin/ota_install.sh"
 
     # Remove any stale helper script
     rm -f "$HELPER_SCRIPT" 2>/dev/null
+
+    if [ -f "$PACKAGE_ZIP" ]; then
+        echo "[RomCloud OTA] Found verified package update..."
+        OTA_TEMP="./.ota-update"
+        rm -rf "$OTA_TEMP"
+        mkdir -p "$OTA_TEMP"
+        if unzip -oq "$PACKAGE_ZIP" -d "$OTA_TEMP" 2>/dev/null || busybox unzip -o "$PACKAGE_ZIP" -d "$OTA_TEMP" 2>/dev/null; then
+            PACKAGE_ROOT="$OTA_TEMP/Apps/RomCloud"
+            PACKAGE_BIN="$PACKAGE_ROOT/bin/RomCloud"
+            PACKAGE_SIZE=$(wc -c < "$PACKAGE_BIN" 2>/dev/null || echo 0)
+            if [ -d "$PACKAGE_ROOT" ] && [ "$PACKAGE_SIZE" -ge 1000000 ]; then
+                if [ -f "./config/settings.json" ]; then
+                    cp -f "./config/settings.json" "$OTA_TEMP/settings.json"
+                fi
+                cp -Rf "$PACKAGE_ROOT"/. .
+                if [ -f "$OTA_TEMP/settings.json" ]; then
+                    cp -f "$OTA_TEMP/settings.json" "./config/settings.json"
+                fi
+                chmod +x ./launch.sh ./bin/RomCloud ./bin/mpv ./bin/yt-dlp ./bin/yt-dlp-glibc ./scripts/*.sh 2>/dev/null
+                rm -rf "$OTA_TEMP" "$PACKAGE_ZIP"
+                sync
+                echo "[RomCloud OTA] Full package installed successfully."
+            else
+                echo "[RomCloud OTA] Invalid package layout; update was not installed."
+                rm -rf "$OTA_TEMP" "$PACKAGE_ZIP"
+            fi
+        else
+            echo "[RomCloud OTA] Cannot extract package; update was not installed."
+            rm -rf "$OTA_TEMP" "$PACKAGE_ZIP"
+        fi
+    fi
 
     # Check for pending official icon update
     if [ -f "./icon.png.new" ]; then

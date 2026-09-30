@@ -10,5 +10,5 @@ TAG="brick-pro-v${VERSION}"
 TARGET_DEVICE=brick-pro ./build.sh
 TARGET_DEVICE=brick-pro ./package.sh
 
-echo "Brick Pro release artifacts are ready in dist/."
+echo "Brick Pro release artifacts are ready in dist/brick-pro/."
 echo "Recommended tag: ${TAG}"
